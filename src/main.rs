@@ -9,23 +9,13 @@ extern crate bitflags;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use std::fs::File;
-use std::io::{self, BufReader, Cursor, Read, Seek};
+use std::io::{self, Cursor, Read, Seek};
 use walkdir::WalkDir;
 
 enum Id3Flags {
    V24(Id324Flags),
    V23(Id323Flags),
    V22(Id322Flags),
-}
-
-impl Id3Flags {
-   fn major_version(&self) -> u8 {
-      match self {
-         Id3Flags::V24(_) => 4,
-         Id3Flags::V23(_) => 3,
-         Id3Flags::V22(_) => 2,
-      }
-   }
 }
 
 bitflags! {
@@ -143,10 +133,10 @@ fn parse_id3<S: Read + Seek>(source: &mut S) -> Result<(), Id3ParseError> {
             unimplemented!();
          }
       }
-      Id3Flags::V23(flags) => {
+      Id3Flags::V23(_flags) => {
          return Err(Id3ParseError::UnsupportedVersion(3));
       }
-      Id3Flags::V22(flags) => {
+      Id3Flags::V22(_flags) => {
          return Err(Id3ParseError::UnsupportedVersion(2));
       }
    }
