@@ -42,6 +42,22 @@ bitflags! {
    }
 }
 
+bitflags! {
+   struct Id3FrameFlags: u16 {
+      // Status
+      const TAG_ALTER_PRESERVATION = 0b0100_0000_0000_0000;
+      const FILE_ALTER_PRESERVATION = 0b0010_0000_0000_0000;
+      const READ_ONLY = 0b0001_0000_0000_0000;
+
+      // Format
+      const GROUPING_IDENTITY = 0b0000_0000_0100_0000;
+      const COMPRESSION = 0b0000_0000_0000_1000;
+      const ENCRYPTION = 0b0000_0000_0000_0100;
+      const UNSYNCHRONIZATION = 0b0000_0000_0000_0010;
+      const DATA_LENGTH_INDICATOR = 0b0000_0000_0000_0001;
+   }
+}
+
 fn main() {
    for entry in WalkDir::new("C:\\music").into_iter() {
       let entry = match entry {
@@ -141,7 +157,17 @@ fn parse_id3<S: Read + Seek>(source: &mut S) -> Result<(), Id3ParseError> {
       }
    }
 
-   println!("{} bytes", header.size);
+   let mut frames = vec![0u8; header.size as usize].into_boxed_slice();
+   source.read(&mut frames)?;
+
+   let mut frames_cursor = Cursor::new(frames);
+   loop {
+      let mut name: [u8; 4] = [0; 4];
+      frames_cursor.read(&mut name)?;
+      let frame_size = synchsafe_u32_to_u32(frames_cursor.read_u32::<BigEndian>()?);
+      let frame_flags_raw = frames_cursor.read_u16::<BigEndian>()?;
+      let frame_flags = Id3FrameFlags::from_bits_truncate(frame_flags_raw);
+   }
 
    Ok(())
 }
