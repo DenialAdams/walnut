@@ -166,7 +166,7 @@ fn parse_id3<S: Read + Seek>(source: &mut S) -> Result<(), Id3ParseError> {
    let mut frames_cursor = Cursor::new(frames);
    while frames_cursor.position() as u32 != header.size {
       let mut name: [u8; 4] = [0; 4];
-      frames_cursor.read_exact(&mut name)?;
+      frames_cursor.read(&mut name)?;
       if &name == b"\0\0\0\0" {
          // Padding, so we must be at end
          break;
