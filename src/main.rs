@@ -85,7 +85,7 @@ fn main() {
          }
       };
 
-      println!("{}", entry.path().file_name().unwrap().to_string_lossy());
+      println!("{}", entry.path().display());
 
       let mut f = File::open(entry.path()).unwrap();
       match parse_id3(&mut f) {
@@ -167,14 +167,14 @@ fn parse_id3<S: Read + Seek>(source: &mut S) -> Result<(), Id3ParseError> {
    while frames_cursor.position() as u32 != header.size {
       let mut name: [u8; 4] = [0; 4];
       frames_cursor.read_exact(&mut name)?;
+      if &name == b"\0\0\0\0" {
+         // Padding, so we must be at end
+         break;
+      }
       let frame_size = synchsafe_u32_to_u32(frames_cursor.read_u32::<BigEndian>()?);
       let frame_flags_raw = frames_cursor.read_u16::<BigEndian>()?;
       let frame_flags = Id3FrameFlags::from_bits_truncate(frame_flags_raw);
       match &name {
-         b"\0\0\0\0" => {
-            // Padding, safe to skip to end
-            frames_cursor.set_position(frames_cursor.position() + u64::from(frame_size));
-         }
          _ => {
             warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
             frames_cursor.set_position(frames_cursor.position() + u64::from(frame_size));
