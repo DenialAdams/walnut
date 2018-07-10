@@ -6,6 +6,7 @@ extern crate log;
 extern crate walkdir;
 #[macro_use]
 extern crate bitflags;
+extern crate pretty_env_logger;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use std::fs::File;
@@ -59,6 +60,8 @@ bitflags! {
 }
 
 fn main() {
+   pretty_env_logger::init();
+
    for entry in WalkDir::new("C:\\music").into_iter() {
       let entry = match entry {
          Err(err) => {
@@ -119,7 +122,7 @@ impl From<io::Error> for Id3ParseError {
 
 fn parse_id3<S: Read + Seek>(source: &mut S) -> Result<(), Id3ParseError> {
    let mut header: &mut [u8] = &mut [0u8; 10];
-   source.read(&mut header)?;
+   source.read_exact(&mut header)?;
 
    let header = if &header[0..3] == b"ID3" {
       parse_id3_header(&header[3..])
@@ -158,15 +161,25 @@ fn parse_id3<S: Read + Seek>(source: &mut S) -> Result<(), Id3ParseError> {
    }
 
    let mut frames = vec![0u8; header.size as usize].into_boxed_slice();
-   source.read(&mut frames)?;
+   source.read_exact(&mut frames)?;
 
    let mut frames_cursor = Cursor::new(frames);
-   loop {
+   while frames_cursor.position() as u32 != header.size {
       let mut name: [u8; 4] = [0; 4];
-      frames_cursor.read(&mut name)?;
+      frames_cursor.read_exact(&mut name)?;
       let frame_size = synchsafe_u32_to_u32(frames_cursor.read_u32::<BigEndian>()?);
       let frame_flags_raw = frames_cursor.read_u16::<BigEndian>()?;
       let frame_flags = Id3FrameFlags::from_bits_truncate(frame_flags_raw);
+      match &name {
+         b"\0\0\0\0" => {
+            // Padding, safe to skip to end
+            frames_cursor.set_position(frames_cursor.position() + frame_size as u64);
+         }
+         _ => {
+            warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
+            frames_cursor.set_position(frames_cursor.position() + frame_size as u64);
+         }
+      }
    }
 
    Ok(())
