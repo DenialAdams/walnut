@@ -62,7 +62,7 @@ bitflags! {
 fn main() {
    pretty_env_logger::init();
 
-   for entry in WalkDir::new("C:\\music").into_iter() {
+   for entry in WalkDir::new("C:\\music") {
       let entry = match entry {
          Err(err) => {
             warn!("Failed to open file/directory: {}", err);
@@ -173,11 +173,11 @@ fn parse_id3<S: Read + Seek>(source: &mut S) -> Result<(), Id3ParseError> {
       match &name {
          b"\0\0\0\0" => {
             // Padding, safe to skip to end
-            frames_cursor.set_position(frames_cursor.position() + frame_size as u64);
+            frames_cursor.set_position(frames_cursor.position() + u64::from(frame_size));
          }
          _ => {
             warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
-            frames_cursor.set_position(frames_cursor.position() + frame_size as u64);
+            frames_cursor.set_position(frames_cursor.position() + u64::from(frame_size));
          }
       }
    }
