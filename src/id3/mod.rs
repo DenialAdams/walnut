@@ -2,14 +2,12 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{self, Cursor, Read, Seek};
 
 macro_rules! wtry {
-   ( $x:expr ) => {
-      {
-         match $x {
-            Err(e) => return Some(Err(e)),
-            Ok(v) => v
-         }
+   ($x:expr) => {{
+      match $x {
+         Err(e) => return Some(Err(e)),
+         Ok(v) => v,
       }
-   };
+   }};
 }
 
 enum TagFlags {
@@ -82,7 +80,7 @@ impl From<io::Error> for TagParseError {
 // https://github.com/rust-lang/rust/issues/44265
 
 pub struct Parser {
-   cursor: Cursor<Box<[u8]>>
+   cursor: Cursor<Box<[u8]>>,
 }
 
 #[derive(Debug)]
@@ -117,19 +115,12 @@ impl Iterator for Parser {
       }
 
       match &name {
-         b"TPE1" => {
-            Some(Ok(Frame::TPE1(
-               wtry!(self.decode_text_frame()).to_owned()
-            ))
-         }
+         b"TPE1" => Some(Ok(Frame::TPE1(wtry!(self.decode_text_frame()).to_owned()))),
          _ => {
             warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
             let mut bytes = vec![0; frame_size as usize].into_boxed_slice();
             wtry!(self.cursor.read_exact(&mut bytes));
-            Some(Ok(Frame::Unknown(UnknownFrame {
-               name,
-               data: bytes,
-            })))
+            Some(Ok(Frame::Unknown(UnknownFrame { name, data: bytes })))
          }
       }
    }
@@ -143,7 +134,7 @@ impl Parser {
          1 => unimplemented!(), // UTF 16 with BOM
          2 => unimplemented!(), // UTF 16 BE NO BOM
          3 => unimplemented!(), // UTF 8
-         _ => unimplemented!() // TODO error
+         _ => unimplemented!(), // TODO error
       }
    }
 }
@@ -168,7 +159,10 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
    match header.flags {
       TagFlags::V24(flags) => {
          if header.revision > 0 {
-            warn!("Unknown revision {}, proceeding anyway but may miss data", header.revision);
+            warn!(
+               "Unknown revision {}, proceeding anyway but may miss data",
+               header.revision
+            );
          }
 
          if flags.contains(v24::TagFlags::UNSYNCHRONIZED) {
