@@ -43,17 +43,22 @@ fn main() {
 
       let mut f = File::open(entry.path()).unwrap();
       match id3::parse_source(&mut f) {
-         Ok(()) => {
+         Ok(parser) => {
             println!("ID3v24");
+            for frame in parser {
+               match frame.unwrap() {
+                  id3::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
+               }
+            }
          }
          Err(e) => match e {
-            id3::ParseError::NoTag => {
+            id3::TagParseError::NoTag => {
                println!("No ID3");
             }
-            id3::ParseError::UnsupportedVersion(ver) => {
+            id3::TagParseError::UnsupportedVersion(ver) => {
                println!("ID3v2{}", ver);
             }
-            id3::ParseError::Io(io_err) => {
+            id3::TagParseError::Io(io_err) => {
                warn!("Failed to parse file: {}", io_err);
             }
          },

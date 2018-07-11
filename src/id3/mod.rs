@@ -1,6 +1,17 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{self, Cursor, Read, Seek};
 
+macro_rules! wtry {
+   ( $x:expr ) => {
+      {
+         match $x {
+            Err(e) => return Some(Err(e)),
+            Ok(v) => v
+         }
+      }
+   };
+}
+
 enum TagFlags {
    V24(v24::TagFlags),
    V23(v23::TagFlags),
@@ -54,24 +65,76 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub enum ParseError {
+pub enum TagParseError {
    NoTag,
    UnsupportedVersion(u8),
    Io(io::Error),
 }
 
-impl From<io::Error> for ParseError {
-   fn from(e: io::Error) -> ParseError {
-      ParseError::Io(e)
+impl From<io::Error> for TagParseError {
+   fn from(e: io::Error) -> TagParseError {
+      TagParseError::Io(e)
    }
 }
 
-pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<(), ParseError> {
+// TODO STREAMING ITERATOR
+// IT WILL PREVENT ALLOCATIONS AND MAKE DREAMS REAL
+// https://github.com/rust-lang/rust/issues/44265
+
+pub struct Parser {
+   cursor: Cursor<Box<[u8]>>
+}
+
+#[derive(Debug)]
+pub enum Frame {
+   Unknown(UnknownFrame),
+}
+
+#[derive(Debug)]
+pub struct UnknownFrame {
+   pub name: [u8; 4],
+   pub data: Box<[u8]>,
+}
+
+impl Iterator for Parser {
+   type Item = Result<Frame, io::Error>;
+
+   fn next(&mut self) -> Option<Result<Frame, io::Error>> {
+      let mut name: [u8; 4] = [0; 4];
+      wtry!(self.cursor.read(&mut name));
+      if &name == b"\0\0\0\0" {
+         // Padding or end of buffer
+         return None;
+      }
+
+      let frame_size = synchsafe_u32_to_u32(wtry!(self.cursor.read_u32::<BigEndian>()));
+      let frame_flags_raw = wtry!(self.cursor.read_u16::<BigEndian>());
+      let frame_flags = FrameFlags::from_bits_truncate(frame_flags_raw);
+
+      if !frame_flags.is_empty() {
+         unimplemented!();
+      }
+
+      match &name {
+         _ => {
+            warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
+            let mut bytes = vec![0; frame_size as usize].into_boxed_slice();
+            wtry!(self.cursor.read_exact(&mut bytes));
+            Some(Ok(Frame::Unknown(UnknownFrame{
+               name,
+               data: bytes,
+            })))
+         }
+      }
+   }
+}
+
+pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseError> {
    let mut header: &mut [u8] = &mut [0u8; 10];
    source.read_exact(&mut header)?;
 
    let header = if &header[0..3] == b"ID3" {
-      parse_id3_header(&header[3..])
+      parse_header(&header[3..])
    } else {
       // Seek to bottom of file minus 10 bytes
       // check for "3DI"
@@ -79,12 +142,16 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<(), ParseError> {
       if true {
          unimplemented!();
       } else {
-         return Err(ParseError::NoTag);
+         return Err(TagParseError::NoTag);
       }
    }?;
 
    match header.flags {
       TagFlags::V24(flags) => {
+         if header.revision > 0 {
+            warn!("Unknown revision {}, proceeding anyway but may miss data", header.revision);
+         }
+
          if flags.contains(v24::TagFlags::UNSYNCHRONIZED) {
             unimplemented!();
          }
@@ -102,46 +169,28 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<(), ParseError> {
          }
       }
       TagFlags::V23(_flags) => {
-         return Err(ParseError::UnsupportedVersion(3));
+         return Err(TagParseError::UnsupportedVersion(3));
       }
       TagFlags::V22(_flags) => {
-         return Err(ParseError::UnsupportedVersion(2));
+         return Err(TagParseError::UnsupportedVersion(2));
       }
    }
 
    let mut frames = vec![0u8; header.size as usize].into_boxed_slice();
    source.read_exact(&mut frames)?;
 
-   let mut frames_cursor = Cursor::new(frames);
-   loop {
-      let mut name: [u8; 4] = [0; 4];
-      frames_cursor.read(&mut name)?;
-      if &name == b"\0\0\0\0" {
-         // Padding or end of buffer
-         break;
-      }
-      let frame_size = synchsafe_u32_to_u32(frames_cursor.read_u32::<BigEndian>()?);
-      let frame_flags_raw = frames_cursor.read_u16::<BigEndian>()?;
-      let frame_flags = FrameFlags::from_bits_truncate(frame_flags_raw);
-      match &name {
-         _ => {
-            warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
-            frames_cursor.set_position(frames_cursor.position() + u64::from(frame_size));
-         }
-      }
-   }
-
-   Ok(())
+   Ok(Parser {
+      cursor: Cursor::new(frames),
+   })
 }
 
-struct Id3Header {
+struct Header {
    flags: TagFlags,
    revision: u8,
    size: u32,
 }
 
-fn parse_id3_header(header: &[u8]) -> Result<Id3Header, ParseError> {
-   // TODO eh don't really neeed cursor here
+fn parse_header(header: &[u8]) -> Result<Header, TagParseError> {
    let mut cursor = Cursor::new(header);
    let major_version = cursor.read_u8()?;
    let revision = cursor.read_u8()?;
@@ -150,9 +199,10 @@ fn parse_id3_header(header: &[u8]) -> Result<Id3Header, ParseError> {
       2 => TagFlags::V22(v22::TagFlags::from_bits_truncate(raw_flags)),
       3 => TagFlags::V23(v23::TagFlags::from_bits_truncate(raw_flags)),
       4 => TagFlags::V24(v24::TagFlags::from_bits_truncate(raw_flags)),
-      _ => return Err(ParseError::UnsupportedVersion(major_version)),
+      _ => return Err(TagParseError::UnsupportedVersion(major_version)),
    };
-   Ok(Id3Header {
+
+   Ok(Header {
       flags,
       revision,
       size: synchsafe_u32_to_u32(cursor.read_u32::<BigEndian>()?),
