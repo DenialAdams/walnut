@@ -13,7 +13,6 @@ mod id3;
 use std::fs::File;
 use walkdir::WalkDir;
 
-
 fn main() {
    pretty_env_logger::init();
 
