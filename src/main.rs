@@ -48,6 +48,7 @@ fn main() {
             for frame in parser {
                match frame.unwrap() {
                   id3::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
+                  _ => (),
                }
             }
          }
