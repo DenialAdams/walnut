@@ -87,6 +87,7 @@ pub struct Parser {
 
 #[derive(Debug)]
 pub enum Frame {
+   TPE1(String),
    Unknown(UnknownFrame),
 }
 
@@ -116,15 +117,33 @@ impl Iterator for Parser {
       }
 
       match &name {
+         b"TPE1" => {
+            Some(Ok(Frame::TPE1(
+               wtry!(self.decode_text_frame()).to_owned()
+            ))
+         }
          _ => {
             warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
             let mut bytes = vec![0; frame_size as usize].into_boxed_slice();
             wtry!(self.cursor.read_exact(&mut bytes));
-            Some(Ok(Frame::Unknown(UnknownFrame{
+            Some(Ok(Frame::Unknown(UnknownFrame {
                name,
                data: bytes,
             })))
          }
+      }
+   }
+}
+
+impl Parser {
+   fn decode_text_frame(&mut self) -> Result<&str, io::Error> {
+      let encoding = self.cursor.read_u8()?;
+      match encoding {
+         0 => unimplemented!(), // IS0 5859,
+         1 => unimplemented!(), // UTF 16 with BOM
+         2 => unimplemented!(), // UTF 16 BE NO BOM
+         3 => unimplemented!(), // UTF 8
+         _ => unimplemented!() // TODO error
       }
    }
 }
