@@ -47,9 +47,11 @@ fn main() {
             println!("ID3v24");
             for frame in parser {
                match frame.unwrap() {
+                  id3::Frame::TALB(x) => println!("Album: {}", x),
+                  id3::Frame::TCON(x) => println!("Genre: {}", x),
                   id3::Frame::TPE1(x) => println!("Artist: {}", x),
+                  id3::Frame::TPE2(x) => println!("ft: {}", x),
                   id3::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
-                  _ => (),
                }
             }
          }

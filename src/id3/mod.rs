@@ -90,7 +90,10 @@ pub struct Parser {
 
 #[derive(Debug)]
 pub enum Frame {
+   TALB(String),
+   TCON(String),
    TPE1(String),
+   TPE2(String),
    Unknown(UnknownFrame),
 }
 
@@ -125,7 +128,97 @@ impl Iterator for Parser {
       self.cursor += 10;
 
       let result = match name {
-         b"TPE1" => Some(Ok(Frame::TPE1(wtry!(self.decode_text_frame(frame_size)).into_owned()))),
+         b"TALB" => Some(Ok(Frame::TALB(wtry!(self.decode_text_frame(frame_size)).into()))),
+         b"TCON" => {
+            // TODO RX AND CR?
+            let genre = wtry!(self.decode_text_frame(frame_size));
+            let genre = match genre.as_ref() {
+               "0" => "Blues",
+               "1" => "Classic Rock",
+               "2" => "Country",
+               "3" => "Dance",
+               "4" => "Disco",
+               "5" => "Funk",
+               "6" => "Grunge",
+               "7" => "Hip-Hop",
+               "8" => "Jazz",
+               "9" => "Metal",
+               "10" => "New Age",
+               "11" => "Oldies",
+               "12" => "Other",
+               "13" => "Pop",
+               "14" => "R&B",
+               "15" => "Rap",
+               "16" => "Reggae",
+               "17" => "Rock",
+               "18" => "Techno",
+               "19" => "Industrial",
+               "20" => "Alternative",
+               "21" => "Ska",
+               "22" => "Death Metal",
+               "23" => "Pranks",
+               "24" => "Soundtrack",
+               "25" => "Euro-Techno",
+               "26" => "Ambient",
+               "27" => "Trip-Hop",
+               "28" => "Vocal",
+               "29" => "Jazz+Funk",
+               "30" => "Fusion",
+               "31" => "Trance",
+               "32" => "Classical",
+               "33" => "Instrumental",
+               "34" => "Acid",
+               "35" => "House",
+               "36" => "Game",
+               "37" => "Sound Clip",
+               "38" => "Gospel",
+               "39" => "Noise",
+               "40" => "AlternRock",
+               "41" => "Bass",
+               "42" => "Soul",
+               "43" => "Punk",
+               "44" => "Space",
+               "45" => "Meditative",
+               "46" => "Instrumental Pop",
+               "47" => "Instrumental Rock",
+               "48" => "Ethnic",
+               "49" => "Gothic",
+               "50" => "Darkwave",
+               "51" => "Techno-Industrial",
+               "52" => "Electronic",
+               "53" => "Pop-Folk",
+               "54" => "Eurodance",
+               "55" => "Dream",
+               "56" => "Southern Rock",
+               "57" => "Comedy",
+               "58" => "Cult",
+               "59" => "Gangsta",
+               "60" => "Top 40",
+               "61" => "Christian Rap",
+               "62" => "Pop/Funk",
+               "63" => "Jungle",
+               "64" => "Native American",
+               "65" => "Cabaret",
+               "66" => "New Wave",
+               "67" => "Psychedelic",
+               "68" => "Rave",
+               "69" => "Showtunes",
+               "70" => "Trailer",
+               "71" => "Lo-Fi",
+               "72" => "Tribal",
+               "73" => "Acid Punk",
+               "74" => "Acid Jazz",
+               "75" => "Polka",
+               "76" => "Retro",
+               "77" => "Musical",
+               "78" => "Rock & Roll",
+               "79" => "Hard Rock",
+               _ => genre.as_ref(),
+            };
+            Some(Ok(Frame::TCON(genre.into())))
+         }
+         b"TPE1" => Some(Ok(Frame::TPE1(wtry!(self.decode_text_frame(frame_size)).into()))),
+         b"TPE2" => Some(Ok(Frame::TPE2(wtry!(self.decode_text_frame(frame_size)).into()))),
          _ => {
             let mut owned_name = [0; 4];
             owned_name.copy_from_slice(name);
@@ -138,6 +231,7 @@ impl Iterator for Parser {
          }
       };
 
+      // TODO we skip this on err doh
       self.cursor += frame_size as usize;
 
       return result;
@@ -166,13 +260,17 @@ impl From<Utf8Error> for TextDecodeError {
 impl Parser {
    fn decode_text_frame(&mut self, frame_size: u32) -> Result<Cow<str>, TextDecodeError> {
       let encoding = self.content[self.cursor];
+      let mut text_data_end = self.cursor + frame_size as usize;
+      while self.content[text_data_end] == b'\0' && text_data_end > self.cursor + 1 {
+         text_data_end -= 1;
+      }
       match encoding {
-         0 => Ok(self.content[self.cursor + 1..self.cursor + frame_size as usize]
+         0 => Ok(self.content[self.cursor + 1..text_data_end]
             .iter()
             .map(|c| *c as char)
             .collect()), // IS0 5859,
          1 => {
-            let text_data = &self.content[self.cursor + 1..self.cursor + frame_size as usize];
+            let text_data = &self.content[self.cursor + 1..text_data_end];
             if text_data.len() % 2 != 0 {
                return Err(TextDecodeError::InvalidUtf16);
             }
@@ -182,7 +280,7 @@ impl Parser {
          } // UTF 16 with BOM
          2 => unimplemented!(), // UTF 16 BE NO BOM
          3 => Ok(Cow::from(std::str::from_utf8(
-            &self.content[self.cursor + 1..self.cursor + frame_size as usize],
+            &self.content[self.cursor + 1..text_data_end],
          )?)), // UTF 8
          _ => Err(TextDecodeError::UnknownEncoding(encoding)),
       }
