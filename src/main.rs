@@ -49,7 +49,7 @@ fn main() {
                match frame.unwrap() {
                   id3::Frame::TPE1(x) => println!("Artist: {}", x),
                   id3::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
-                  _=> (),
+                  _ => (),
                }
             }
          }
