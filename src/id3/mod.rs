@@ -1,5 +1,9 @@
-use byteorder::{BigEndian, ReadBytesExt};
-use std::io::{self, Cursor, Read, Seek};
+use byteorder::{BigEndian, ByteOrder};
+use std::borrow::Cow;
+use std::io::{self, Read, Seek};
+use std;
+use std::str::Utf8Error;
+use std::string::FromUtf16Error;
 
 macro_rules! wtry {
    ($x:expr) => {{
@@ -80,7 +84,8 @@ impl From<io::Error> for TagParseError {
 // https://github.com/rust-lang/rust/issues/44265
 
 pub struct Parser {
-   cursor: Cursor<Box<[u8]>>,
+   content: Box<[u8]>,
+   cursor: usize,
 }
 
 #[derive(Debug)]
@@ -96,45 +101,83 @@ pub struct UnknownFrame {
 }
 
 impl Iterator for Parser {
-   type Item = Result<Frame, io::Error>;
+   type Item = Result<Frame, TextDecodeError>;
 
-   fn next(&mut self) -> Option<Result<Frame, io::Error>> {
-      let mut name: [u8; 4] = [0; 4];
-      wtry!(self.cursor.read(&mut name));
-      if &name == b"\0\0\0\0" {
+   fn next(&mut self) -> Option<Result<Frame, TextDecodeError>> {
+      if self.content.len() - self.cursor < 10 {
+         return None;
+      }
+
+      let name = &self.content[self.cursor..self.cursor+4];
+      if name == b"\0\0\0\0" {   
          // Padding or end of buffer
          return None;
       }
 
-      let frame_size = synchsafe_u32_to_u32(wtry!(self.cursor.read_u32::<BigEndian>()));
-      let frame_flags_raw = wtry!(self.cursor.read_u16::<BigEndian>());
+      let frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(&self.content[self.cursor+4..self.cursor+8]));
+      let frame_flags_raw = BigEndian::read_u16(&self.content[self.cursor+8..self.cursor+10]);
       let frame_flags = FrameFlags::from_bits_truncate(frame_flags_raw);
 
       if !frame_flags.is_empty() {
          unimplemented!();
       }
 
-      match &name {
-         b"TPE1" => Some(Ok(Frame::TPE1(wtry!(self.decode_text_frame()).to_owned()))),
+      self.cursor += 10;
+
+      let result = match name {
+         b"TPE1" => Some(Ok(Frame::TPE1(wtry!(self.decode_text_frame(frame_size)).into_owned()))),
          _ => {
-            warn!("Unknown frame: {}", String::from_utf8_lossy(&name));
+            let mut owned_name = [0; 4];
+            owned_name.copy_from_slice(name);
             let mut bytes = vec![0; frame_size as usize].into_boxed_slice();
-            wtry!(self.cursor.read_exact(&mut bytes));
-            Some(Ok(Frame::Unknown(UnknownFrame { name, data: bytes })))
+            bytes.copy_from_slice(&self.content[self.cursor..self.cursor + frame_size as usize]);
+            Some(Ok(Frame::Unknown(UnknownFrame { name: owned_name, data: bytes })))
          }
-      }
+      };
+
+      self.cursor += frame_size as usize;
+
+      return result
+   }
+}
+
+#[derive(Debug)]
+pub enum TextDecodeError {
+   InvalidUtf16,
+   InvalidUtf8,
+   UnknownEncoding(u8),
+}
+
+impl From<FromUtf16Error> for TextDecodeError {
+   fn from(_: FromUtf16Error) -> TextDecodeError {
+      TextDecodeError::InvalidUtf16
+   }
+}
+
+impl From<Utf8Error> for TextDecodeError {
+   fn from(_: Utf8Error) -> TextDecodeError {
+      TextDecodeError::InvalidUtf8
    }
 }
 
 impl Parser {
-   fn decode_text_frame(&mut self) -> Result<&str, io::Error> {
-      let encoding = self.cursor.read_u8()?;
+   fn decode_text_frame(&mut self, frame_size: u32) -> Result<Cow<str>, TextDecodeError> {
+      let encoding = self.content[self.cursor];
       match encoding {
-         0 => unimplemented!(), // IS0 5859,
-         1 => unimplemented!(), // UTF 16 with BOM
+         0 => Ok(self.content[self.cursor+1..self.cursor+frame_size as usize].iter().map(|c| *c as char).collect()), // IS0 5859,
+         1 => {
+            let text_data = &self.content[self.cursor+1..self.cursor+frame_size as usize];
+            if text_data.len() % 2 != 0 {
+               assert!(false);
+            }
+            let text_data = unsafe {
+               std::mem::transmute::<&[u8], &[u16]>(text_data)
+            };
+            Ok(Cow::from(String::from_utf16(text_data)?))
+         } // UTF 16 with BOM
          2 => unimplemented!(), // UTF 16 BE NO BOM
-         3 => unimplemented!(), // UTF 8
-         _ => unimplemented!(), // TODO error
+         3 => Ok(Cow::from(std::str::from_utf8(&self.content[self.cursor+1..self.cursor+frame_size as usize])?)), // UTF 8
+         _ => Err(TextDecodeError::UnknownEncoding(encoding))
       }
    }
 }
@@ -193,7 +236,8 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
    source.read_exact(&mut frames)?;
 
    Ok(Parser {
-      cursor: Cursor::new(frames),
+      cursor: 0,
+      content: frames
    })
 }
 
@@ -204,10 +248,9 @@ struct Header {
 }
 
 fn parse_header(header: &[u8]) -> Result<Header, TagParseError> {
-   let mut cursor = Cursor::new(header);
-   let major_version = cursor.read_u8()?;
-   let revision = cursor.read_u8()?;
-   let raw_flags = cursor.read_u8()?;
+   let major_version = header[0];
+   let revision = header[1];
+   let raw_flags = header[2];
    let flags = match major_version {
       2 => TagFlags::V22(v22::TagFlags::from_bits_truncate(raw_flags)),
       3 => TagFlags::V23(v23::TagFlags::from_bits_truncate(raw_flags)),
@@ -218,7 +261,7 @@ fn parse_header(header: &[u8]) -> Result<Header, TagParseError> {
    Ok(Header {
       flags,
       revision,
-      size: synchsafe_u32_to_u32(cursor.read_u32::<BigEndian>()?),
+      size: synchsafe_u32_to_u32(BigEndian::read_u32(&header[3..7])),
    })
 }
 
