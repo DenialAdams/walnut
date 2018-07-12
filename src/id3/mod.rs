@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
+use std;
 use std::borrow::Cow;
 use std::io::{self, Read, Seek};
-use std;
 use std::str::Utf8Error;
 use std::string::FromUtf16Error;
 
@@ -108,14 +108,14 @@ impl Iterator for Parser {
          return None;
       }
 
-      let name = &self.content[self.cursor..self.cursor+4];
-      if name == b"\0\0\0\0" {   
+      let name = &self.content[self.cursor..self.cursor + 4];
+      if name == b"\0\0\0\0" {
          // Padding or end of buffer
          return None;
       }
 
-      let frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(&self.content[self.cursor+4..self.cursor+8]));
-      let frame_flags_raw = BigEndian::read_u16(&self.content[self.cursor+8..self.cursor+10]);
+      let frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(&self.content[self.cursor + 4..self.cursor + 8]));
+      let frame_flags_raw = BigEndian::read_u16(&self.content[self.cursor + 8..self.cursor + 10]);
       let frame_flags = FrameFlags::from_bits_truncate(frame_flags_raw);
 
       if !frame_flags.is_empty() {
@@ -131,13 +131,16 @@ impl Iterator for Parser {
             owned_name.copy_from_slice(name);
             let mut bytes = vec![0; frame_size as usize].into_boxed_slice();
             bytes.copy_from_slice(&self.content[self.cursor..self.cursor + frame_size as usize]);
-            Some(Ok(Frame::Unknown(UnknownFrame { name: owned_name, data: bytes })))
+            Some(Ok(Frame::Unknown(UnknownFrame {
+               name: owned_name,
+               data: bytes,
+            })))
          }
       };
 
       self.cursor += frame_size as usize;
 
-      return result
+      return result;
    }
 }
 
@@ -164,20 +167,23 @@ impl Parser {
    fn decode_text_frame(&mut self, frame_size: u32) -> Result<Cow<str>, TextDecodeError> {
       let encoding = self.content[self.cursor];
       match encoding {
-         0 => Ok(self.content[self.cursor+1..self.cursor+frame_size as usize].iter().map(|c| *c as char).collect()), // IS0 5859,
+         0 => Ok(self.content[self.cursor + 1..self.cursor + frame_size as usize]
+            .iter()
+            .map(|c| *c as char)
+            .collect()), // IS0 5859,
          1 => {
-            let text_data = &self.content[self.cursor+1..self.cursor+frame_size as usize];
+            let text_data = &self.content[self.cursor + 1..self.cursor + frame_size as usize];
             if text_data.len() % 2 != 0 {
                assert!(false);
             }
-            let text_data = unsafe {
-               std::mem::transmute::<&[u8], &[u16]>(text_data)
-            };
+            let text_data = unsafe { std::mem::transmute::<&[u8], &[u16]>(text_data) };
             Ok(Cow::from(String::from_utf16(text_data)?))
          } // UTF 16 with BOM
          2 => unimplemented!(), // UTF 16 BE NO BOM
-         3 => Ok(Cow::from(std::str::from_utf8(&self.content[self.cursor+1..self.cursor+frame_size as usize])?)), // UTF 8
-         _ => Err(TextDecodeError::UnknownEncoding(encoding))
+         3 => Ok(Cow::from(std::str::from_utf8(
+            &self.content[self.cursor + 1..self.cursor + frame_size as usize],
+         )?)), // UTF 8
+         _ => Err(TextDecodeError::UnknownEncoding(encoding)),
       }
    }
 }
@@ -237,7 +243,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
 
    Ok(Parser {
       cursor: 0,
-      content: frames
+      content: frames,
    })
 }
 
