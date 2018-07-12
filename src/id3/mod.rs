@@ -177,7 +177,7 @@ impl Parser {
                assert!(false);
             }
             let text_data = unsafe {
-               &std::slice::from_raw_parts(text_data.as_ptr() as *const u16, text_data.len() / 2)
+               std::slice::from_raw_parts(text_data.as_ptr() as *const u16, text_data.len() / 2)
             };
             Ok(Cow::from(String::from_utf16(text_data)?))
          } // UTF 16 with BOM
