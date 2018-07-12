@@ -259,14 +259,32 @@ impl From<Utf8Error> for TextDecodeError {
 
 impl Parser {
    fn decode_text_frame(&mut self, frame_size: u32) -> Result<Cow<str>, TextDecodeError> {
+      if frame_size == 1 {
+         return Ok(Cow::from(""));
+      }
       let encoding = self.content[self.cursor];
+      let text_end = if encoding == 0 || encoding == 3 {
+         if self.content[(self.cursor + frame_size as usize) - 1] == 0 {
+            (self.cursor + frame_size as usize) - 1
+         } else {
+            self.cursor + frame_size as usize
+         }
+      } else if encoding == 1 || encoding == 2 {
+         if &self.content[(self.cursor + frame_size as usize) - 2..self.cursor + frame_size as usize] == b"\0\0" {
+            (self.cursor + frame_size as usize) - 2
+         } else {
+            self.cursor + frame_size as usize
+         }
+      } else {
+         return Err(TextDecodeError::UnknownEncoding(encoding));
+      };
       match encoding {
-         0 => Ok(self.content[self.cursor + 1..self.cursor + frame_size as usize]
+         0 => Ok(self.content[self.cursor + 1..text_end]
             .iter()
             .map(|c| *c as char)
             .collect()), // IS0 5859,
          1 => {
-            let text_data = &self.content[self.cursor + 1..self.cursor + frame_size as usize];
+            let text_data = &self.content[self.cursor + 1..text_end];
             if text_data.len() % 2 != 0 {
                return Err(TextDecodeError::InvalidUtf16);
             }
@@ -276,9 +294,9 @@ impl Parser {
          } // UTF 16 with BOM
          2 => unimplemented!(), // UTF 16 BE NO BOM
          3 => Ok(Cow::from(std::str::from_utf8(
-            &self.content[self.cursor + 1..self.cursor + frame_size as usize],
+            &self.content[self.cursor + 1..text_end],
          )?)), // UTF 8
-         _ => Err(TextDecodeError::UnknownEncoding(encoding)),
+         _ => unreachable!(),
       }
    }
 }
