@@ -174,7 +174,7 @@ impl Parser {
          1 => {
             let text_data = &self.content[self.cursor + 1..self.cursor + frame_size as usize];
             if text_data.len() % 2 != 0 {
-               assert!(false);
+               return Err(TextDecodeError::InvalidUtf16);
             }
             let text_data =
                unsafe { std::slice::from_raw_parts(text_data.as_ptr() as *const u16, text_data.len() / 2) };
