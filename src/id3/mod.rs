@@ -290,9 +290,8 @@ impl Parser {
             if text_data.len() % 2 != 0 {
                return Err(TextDecodeError::InvalidUtf16);
             }
-            let new_len = text_data.len() / 2;
-            let mut buffer = vec![0u16; new_len].into_boxed_slice();
-            unsafe { std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, new_len) };
+            let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
+            unsafe { std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len()) };
             Ok(Cow::from(String::from_utf16(&buffer)?))
          } // UTF 16 with BOM
          2 => unimplemented!(), // UTF 16 BE NO BOM
