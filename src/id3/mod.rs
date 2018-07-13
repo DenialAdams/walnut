@@ -92,6 +92,7 @@ pub struct Parser {
 pub enum Frame {
    TALB(String),
    TCON(String),
+   TIT2(String),
    TPE1(String),
    TPE2(String),
    Unknown(UnknownFrame),
@@ -217,6 +218,7 @@ impl Iterator for Parser {
             };
             Some(Ok(Frame::TCON(genre.into())))
          }
+         b"TIT2" => Some(Ok(Frame::TIT2(wtry!(self.decode_text_frame(frame_size)).into()))),
          b"TPE1" => Some(Ok(Frame::TPE1(wtry!(self.decode_text_frame(frame_size)).into()))),
          b"TPE2" => Some(Ok(Frame::TPE2(wtry!(self.decode_text_frame(frame_size)).into()))),
          _ => {

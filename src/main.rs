@@ -49,8 +49,9 @@ fn main() {
                match frame.unwrap() {
                   id3::Frame::TALB(x) => println!("Album: {}", x),
                   id3::Frame::TCON(x) => println!("Genre: {}", x),
+                  id3::Frame::TIT2(x) => println!("Title: {}", x),
                   id3::Frame::TPE1(x) => println!("Artist: {}", x),
-                  id3::Frame::TPE2(x) => println!("ft: {}", x),
+                  id3::Frame::TPE2(x) => println!("Album Artist: {}", x),
                   id3::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
                }
             }
