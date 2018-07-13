@@ -11,5 +11,11 @@ rusqlite = "0.13"
 walkdir = "2"
 pretty_env_logger = "0.2"
 
+[dev-dependencies]
+criterion = "0.2"
+
+[target.'cfg(windows)'.dev-dependencies]
+winapi = { version = "0.3", features = ["ntdef"] }
+
 [profile.release]
 lto = true

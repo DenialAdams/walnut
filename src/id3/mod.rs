@@ -236,7 +236,7 @@ impl Iterator for Parser {
       // TODO we skip this on err doh
       self.cursor += frame_size as usize;
 
-      return result;
+      result
    }
 }
 
@@ -290,9 +290,10 @@ impl Parser {
             if text_data.len() % 2 != 0 {
                return Err(TextDecodeError::InvalidUtf16);
             }
-            let text_data =
-               unsafe { std::slice::from_raw_parts(text_data.as_ptr() as *const u16, text_data.len() / 2) };
-            Ok(Cow::from(String::from_utf16(text_data)?))
+            let new_len = text_data.len() / 2;
+            let mut buffer = vec![0u16; new_len].into_boxed_slice();
+            unsafe { std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, new_len) };
+            Ok(Cow::from(String::from_utf16(&buffer)?))
          } // UTF 16 with BOM
          2 => unimplemented!(), // UTF 16 BE NO BOM
          3 => Ok(Cow::from(std::str::from_utf8(
@@ -313,11 +314,8 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
       // Seek to bottom of file minus 10 bytes
       // check for "3DI"
       // if yes tag at bottom
-      if true {
-         unimplemented!();
-      } else {
-         return Err(TagParseError::NoTag);
-      }
+      // unimplemented!()
+      Err(TagParseError::NoTag)
    }?;
 
    match header.flags {
