@@ -8,6 +8,8 @@ extern crate walkdir;
 extern crate bitflags;
 extern crate pretty_env_logger;
 
+#[macro_use]
+mod macros;
 mod id3;
 
 use std::fs::File;
@@ -47,12 +49,12 @@ fn main() {
             println!("ID3v24");
             for frame in parser {
                match frame.unwrap() {
-                  id3::Frame::TALB(x) => println!("Album: {}", x),
-                  id3::Frame::TCON(x) => println!("Genre: {}", x),
-                  id3::Frame::TIT2(x) => println!("Title: {}", x),
-                  id3::Frame::TPE1(x) => println!("Artist: {}", x),
-                  id3::Frame::TPE2(x) => println!("Album Artist: {}", x),
-                  id3::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
+                  id3::v24::Frame::TALB(x) => println!("Album: {}", x),
+                  id3::v24::Frame::TCON(x) => println!("Genre: {}", x),
+                  id3::v24::Frame::TIT2(x) => println!("Title: {}", x),
+                  id3::v24::Frame::TPE1(x) => println!("Artist: {}", x),
+                  id3::v24::Frame::TPE2(x) => println!("Album Artist: {}", x),
+                  id3::v24::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
                }
             }
          }
