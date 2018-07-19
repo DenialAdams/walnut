@@ -82,12 +82,14 @@ impl Iterator for Parser {
 
       self.cursor += 10;
 
+      let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
+
       let result = do catch {
          match name {
-            b"TALB" => Frame::TALB(self.decode_text_frame(frame_size)?.into()),
+            b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?.into()),
             b"TCON" => {
                // TODO RX AND CR?
-               let genre = self.decode_text_frame(frame_size)?;
+               let genre = decode_text_frame(frame_bytes)?;
                let genre = match genre.as_ref() {
                   "0" => "Blues",
                   "1" => "Classic Rock",
@@ -173,17 +175,17 @@ impl Iterator for Parser {
                };
                Frame::TCON(genre.into())
             }
-            b"TIT2" => Frame::TIT2(self.decode_text_frame(frame_size)?.into()),
-            b"TPE1" => Frame::TPE1(self.decode_text_frame(frame_size)?.into()),
-            b"TPE2" => Frame::TPE2(self.decode_text_frame(frame_size)?.into()),
+            b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?.into()),
+            b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?.into()),
+            b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?.into()),
             _ => {
                let mut owned_name = [0; 4];
                owned_name.copy_from_slice(name);
-               let mut bytes = vec![0; frame_size as usize].into_boxed_slice();
-               bytes.copy_from_slice(&self.content[self.cursor..self.cursor + frame_size as usize]);
+               let mut owned_bytes = vec![0; frame_size as usize].into_boxed_slice();
+               owned_bytes.copy_from_slice(frame_bytes);
                Frame::Unknown(UnknownFrame {
                   name: owned_name,
-                  data: bytes,
+                  data: owned_bytes,
                })
             }
          }
@@ -195,46 +197,44 @@ impl Iterator for Parser {
    }
 }
 
-impl Parser {
-   fn decode_text_frame(&mut self, frame_size: u32) -> Result<Cow<str>, TextDecodeError> {
-      if frame_size == 1 {
-         return Ok(Cow::from(""));
-      }
-      let encoding = self.content[self.cursor];
-      let text_end = if encoding == 0 || encoding == 3 {
-         if self.content[(self.cursor + frame_size as usize) - 1] == 0 {
-            (self.cursor + frame_size as usize) - 1
-         } else {
-            self.cursor + frame_size as usize
-         }
-      } else if encoding == 1 || encoding == 2 {
-         if &self.content[(self.cursor + frame_size as usize) - 2..self.cursor + frame_size as usize] == b"\0\0" {
-            (self.cursor + frame_size as usize) - 2
-         } else {
-            self.cursor + frame_size as usize
-         }
+fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
+   if frame.len() == 1 {
+      return Ok(Cow::from(""));
+   }
+   let encoding = frame[0];
+   let text_end = if encoding == 0 || encoding == 3 {
+      if frame[frame.len() - 1] == 0 {
+         frame.len() as usize - 1
       } else {
-         return Err(TextDecodeError::UnknownEncoding(encoding));
-      };
-      match encoding {
-         0 => Ok(self.content[self.cursor + 1..text_end]
-            .iter()
-            .map(|c| *c as char)
-            .collect()), // IS0 5859,
-         1 => {
-            let text_data = &self.content[self.cursor + 1..text_end];
-            if text_data.len() % 2 != 0 {
-               return Err(TextDecodeError::InvalidUtf16);
-            }
-            let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
-            unsafe { std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len()) };
-            Ok(Cow::from(String::from_utf16(&buffer)?))
-         } // UTF 16 with BOM
-         2 => unimplemented!(), // UTF 16 BE NO BOM
-         3 => Ok(Cow::from(std::str::from_utf8(
-            &self.content[self.cursor + 1..text_end],
-         )?)), // UTF 8
-         _ => unreachable!(),
+         frame.len() as usize
       }
+   } else if encoding == 1 || encoding == 2 {
+      if &frame[frame.len() - 2..frame.len()] == b"\0\0" {
+         frame.len() - 2
+      } else {
+         frame.len()
+      }
+   } else {
+      return Err(TextDecodeError::UnknownEncoding(encoding));
+   };
+   match encoding {
+      0 => Ok(frame[1..text_end]
+         .iter()
+         .map(|c| *c as char)
+         .collect()), // IS0 5859,
+      1 => {
+         let text_data = &frame[1..text_end];
+         if text_data.len() % 2 != 0 {
+            return Err(TextDecodeError::InvalidUtf16);
+         }
+         let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
+         unsafe { std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len()) };
+         Ok(Cow::from(String::from_utf16(&buffer)?))
+      } // UTF 16 with BOM
+      2 => unimplemented!(), // UTF 16 BE NO BOM
+      3 => Ok(Cow::from(std::str::from_utf8(
+         &frame[1..text_end],
+      )?)), // UTF 8
+      _ => unreachable!(),
    }
 }
