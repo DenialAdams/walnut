@@ -1,4 +1,4 @@
-use super::{synchsafe_u32_to_u32, TextDecodeError};
+use super::{synchsafe_u32_to_u32, TextDecodeError, FrameParseError};
 use byteorder::{BigEndian, ByteOrder};
 use std;
 use std::borrow::Cow;
@@ -56,9 +56,9 @@ pub struct UnknownFrame {
 }
 
 impl Iterator for Parser {
-   type Item = Result<Frame, TextDecodeError>;
+   type Item = Result<Frame, FrameParseError>;
 
-   fn next(&mut self) -> Option<Result<Frame, TextDecodeError>> {
+   fn next(&mut self) -> Option<Result<Frame, FrameParseError>> {
       if self.content.len() - self.cursor < 10 {
          return None;
       }
@@ -78,6 +78,10 @@ impl Iterator for Parser {
       }
 
       self.cursor += 10;
+
+      if frame_size == 0 {
+         return Some(Err(FrameParseError::EmptyFrame));
+      }
 
       let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
 

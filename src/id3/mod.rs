@@ -31,6 +31,18 @@ impl From<io::Error> for TagParseError {
 // https://github.com/rust-lang/rust/issues/44265
 
 #[derive(Debug)]
+pub enum FrameParseError {
+   EmptyFrame,
+   TextDecodeError(TextDecodeError)
+}
+
+impl From<TextDecodeError> for FrameParseError {
+   fn from(e: TextDecodeError) -> FrameParseError {
+      FrameParseError::TextDecodeError(e)
+   }
+}
+
+#[derive(Debug)]
 pub enum TextDecodeError {
    InvalidUtf16,
    InvalidUtf8,
@@ -50,13 +62,13 @@ impl From<Utf8Error> for TextDecodeError {
 }
 
 pub struct Parser {
-   inner: Box<dyn Iterator<Item = Result<v24::Frame, TextDecodeError>>>,
+   inner: Box<dyn Iterator<Item = Result<v24::Frame, FrameParseError>>>,
 }
 
 impl Iterator for Parser {
-   type Item = Result<v24::Frame, TextDecodeError>;
+   type Item = Result<v24::Frame, FrameParseError>;
 
-   fn next(&mut self) -> Option<Result<v24::Frame, TextDecodeError>> {
+   fn next(&mut self) -> Option<Result<v24::Frame, FrameParseError>> {
       self.inner.next()
    }
 }
