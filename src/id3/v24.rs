@@ -200,16 +200,22 @@ impl Iterator for Parser {
 
 fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
    if frame.len() == 1 {
+      // Only encoding is present
       return Ok(Cow::from(""));
    }
+
    let encoding = frame[0];
+
+   // Adjust length to account for trailing nulls (if present)
    let text_end = if encoding == 0 || encoding == 3 {
+      // 1 byte per char, 1 null at end
       if frame[frame.len() - 1] == 0 {
          frame.len() as usize - 1
       } else {
          frame.len() as usize
       }
    } else if encoding == 1 || encoding == 2 {
+      // 2 bytes per char, 2 nulls at end
       if &frame[frame.len() - 2..frame.len()] == b"\0\0" {
          frame.len() - 2
       } else {
@@ -218,6 +224,7 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
    } else {
       return Err(TextDecodeError::UnknownEncoding(encoding));
    };
+
    match encoding {
       0 => Ok(frame[1..text_end].iter().map(|c| *c as char).collect()), // IS0 5859,
       1 => {
