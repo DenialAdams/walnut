@@ -52,6 +52,7 @@ fn main() {
                   id3::v24::Frame::TIT2(x) => println!("Title: {}", x),
                   id3::v24::Frame::TPE1(x) => println!("Artist: {}", x),
                   id3::v24::Frame::TPE2(x) => println!("Album Artist: {}", x),
+                  id3::v24::Frame::TRCK(x) => println!("Track: {:?}", x),
                   id3::v24::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
                }
             }

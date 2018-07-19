@@ -1,7 +1,10 @@
 use byteorder::{BigEndian, ByteOrder};
 use std::io::{self, Read, Seek};
+use std;
+use std::borrow::Cow;
 use std::str::Utf8Error;
 use std::string::FromUtf16Error;
+use std::num::ParseIntError;
 
 mod v22;
 mod v23;
@@ -34,11 +37,18 @@ impl From<io::Error> for TagParseError {
 pub enum FrameParseError {
    EmptyFrame,
    TextDecodeError(TextDecodeError),
+   ParseTrackError(ParseTrackError),
 }
 
 impl From<TextDecodeError> for FrameParseError {
    fn from(e: TextDecodeError) -> FrameParseError {
       FrameParseError::TextDecodeError(e)
+   }
+}
+
+impl From<ParseTrackError> for FrameParseError {
+   fn from(e: ParseTrackError) -> FrameParseError {
+      FrameParseError::ParseTrackError(e)
    }
 }
 
@@ -58,6 +68,17 @@ impl From<FromUtf16Error> for TextDecodeError {
 impl From<Utf8Error> for TextDecodeError {
    fn from(_: Utf8Error) -> TextDecodeError {
       TextDecodeError::InvalidUtf8
+   }
+}
+
+#[derive(Debug)]
+pub enum ParseTrackError {
+   InvalidTrackNumber(ParseIntError),
+}
+
+impl From<ParseIntError> for ParseTrackError {
+   fn from(e: ParseIntError) -> ParseTrackError {
+      ParseTrackError::InvalidTrackNumber(e)
    }
 }
 
@@ -154,6 +175,56 @@ fn synchsafe_u32_to_u32(sync_int: u32) -> u32 {
    let mid_high = (sync_int & 0x00_fc_00_00) >> 2 | (sync_int & 0x07_00_00_00) >> 3;
    let high = (sync_int & 0xf8_00_00_00) >> 3;
    high | mid_high | mid_low | low
+}
+
+fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
+   if frame.len() == 1 {
+      // Only encoding is present
+      return Ok(Cow::from(""));
+   }
+
+   let encoding = frame[0];
+
+   // Adjust length to account for trailing nulls (if present)
+   let text_end = if encoding == 0 || encoding == 3 {
+      // 1 byte per char, 1 null at end
+      if frame[frame.len() - 1] == 0 {
+         frame.len() as usize - 1
+      } else {
+         frame.len() as usize
+      }
+   } else if encoding == 1 || encoding == 2 {
+      // 2 bytes per char, 2 nulls at end
+      if &frame[frame.len() - 2..frame.len()] == b"\0\0" {
+         frame.len() - 2
+      } else {
+         frame.len()
+      }
+   } else {
+      return Err(TextDecodeError::UnknownEncoding(encoding));
+   };
+
+   match encoding {
+      0 => Ok(frame[1..text_end].iter().map(|c| *c as char).collect()), // IS0 5859,
+      1 => {
+         let text_data = &frame[1..text_end];
+         if text_data[0..2] == [0xFE, 0xFF] {
+            // Big endian
+            unimplemented!();
+         }
+         if text_data.len() % 2 != 0 {
+            return Err(TextDecodeError::InvalidUtf16);
+         }
+         let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
+         unsafe {
+            std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len())
+         };
+         Ok(Cow::from(String::from_utf16(&buffer[1..])?)) // 1.. to skip BOM
+      } // UTF-16 with BOM
+      2 => unimplemented!(),                                            // UTF-16 BE NO BOM
+      3 => Ok(Cow::from(std::str::from_utf8(&frame[1..text_end])?)),    // UTF-8
+      _ => unreachable!(),
+   }
 }
 
 mod test {

@@ -1,7 +1,7 @@
-use super::{synchsafe_u32_to_u32, FrameParseError, TextDecodeError};
+use super::{decode_text_frame, synchsafe_u32_to_u32, FrameParseError, ParseTrackError};
 use byteorder::{BigEndian, ByteOrder};
 use std;
-use std::borrow::Cow;
+use std::str::FromStr;
 
 bitflags! {
    pub(super) struct FrameFlags: u16 {
@@ -46,7 +46,37 @@ pub enum Frame {
    TIT2(String),
    TPE1(String),
    TPE2(String),
+   TRCK(Track),
    Unknown(UnknownFrame),
+}
+
+#[derive(Debug)]
+pub struct Track {
+   pub track_number: u64,
+   pub track_max: Option<u64>,
+}
+
+impl FromStr for Track {
+   type Err = ParseTrackError;
+
+   fn from_str(s: &str) -> Result<Track, ParseTrackError> {
+      // I think this is safe because splitn always returns at least 1
+      // but i could just bite the bullet and check it
+      let mut track_number = unsafe { std::mem::uninitialized() };
+      let mut track_max = None;
+      for (i, snum) in s.splitn(2, '/').enumerate() {
+         if i == 0 {
+            track_number = snum.parse()?;
+         } else if i == 1 {
+            track_max = Some(snum.parse()?);
+         }
+      }
+
+      Ok(Track {
+         track_number,
+         track_max,
+      })
+   }
 }
 
 #[derive(Debug)]
@@ -179,6 +209,7 @@ impl Iterator for Parser {
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?.into()),
             b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?.into()),
             b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?.into()),
+            b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
             _ => {
                let mut owned_name = [0; 4];
                owned_name.copy_from_slice(name);
@@ -195,51 +226,5 @@ impl Iterator for Parser {
       self.cursor += frame_size as usize;
 
       Some(result)
-   }
-}
-
-fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
-   if frame.len() == 1 {
-      // Only encoding is present
-      return Ok(Cow::from(""));
-   }
-
-   let encoding = frame[0];
-
-   // Adjust length to account for trailing nulls (if present)
-   let text_end = if encoding == 0 || encoding == 3 {
-      // 1 byte per char, 1 null at end
-      if frame[frame.len() - 1] == 0 {
-         frame.len() as usize - 1
-      } else {
-         frame.len() as usize
-      }
-   } else if encoding == 1 || encoding == 2 {
-      // 2 bytes per char, 2 nulls at end
-      if &frame[frame.len() - 2..frame.len()] == b"\0\0" {
-         frame.len() - 2
-      } else {
-         frame.len()
-      }
-   } else {
-      return Err(TextDecodeError::UnknownEncoding(encoding));
-   };
-
-   match encoding {
-      0 => Ok(frame[1..text_end].iter().map(|c| *c as char).collect()), // IS0 5859,
-      1 => {
-         let text_data = &frame[1..text_end];
-         if text_data.len() % 2 != 0 {
-            return Err(TextDecodeError::InvalidUtf16);
-         }
-         let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
-         unsafe {
-            std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len())
-         };
-         Ok(Cow::from(String::from_utf16(&buffer)?))
-      } // UTF 16 with BOM
-      2 => unimplemented!(),                                            // UTF 16 BE NO BOM
-      3 => Ok(Cow::from(std::str::from_utf8(&frame[1..text_end])?)),    // UTF 8
-      _ => unreachable!(),
    }
 }
