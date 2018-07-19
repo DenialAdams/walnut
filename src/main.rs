@@ -8,8 +8,6 @@ extern crate walkdir;
 extern crate bitflags;
 extern crate pretty_env_logger;
 
-#[macro_use]
-mod macros;
 mod id3;
 
 use std::fs::File;
