@@ -1,4 +1,4 @@
-use super::{synchsafe_u32_to_u32, TextDecodeError, FrameParseError};
+use super::{synchsafe_u32_to_u32, FrameParseError, TextDecodeError};
 use byteorder::{BigEndian, ByteOrder};
 use std;
 use std::borrow::Cow;

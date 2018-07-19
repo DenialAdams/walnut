@@ -33,7 +33,7 @@ impl From<io::Error> for TagParseError {
 #[derive(Debug)]
 pub enum FrameParseError {
    EmptyFrame,
-   TextDecodeError(TextDecodeError)
+   TextDecodeError(TextDecodeError),
 }
 
 impl From<TextDecodeError> for FrameParseError {
