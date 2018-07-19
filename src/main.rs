@@ -1,4 +1,4 @@
-#![feature(nll)]
+#![feature(nll, catch_expr)]
 
 extern crate byteorder;
 #[macro_use]
