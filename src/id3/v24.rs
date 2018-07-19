@@ -1,7 +1,7 @@
+use super::{synchsafe_u32_to_u32, TextDecodeError};
+use byteorder::{BigEndian, ByteOrder};
 use std;
 use std::borrow::Cow;
-use byteorder::{BigEndian, ByteOrder};
-use super::{TextDecodeError, synchsafe_u32_to_u32};
 
 bitflags! {
    pub(super) struct FrameFlags: u16 {
@@ -35,10 +35,7 @@ pub(super) struct Parser {
 
 impl Parser {
    pub fn new(content: Box<[u8]>) -> Parser {
-      Parser {
-         content,
-         cursor: 0,
-      }
+      Parser { content, cursor: 0 }
    }
 }
 
@@ -218,23 +215,20 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
       return Err(TextDecodeError::UnknownEncoding(encoding));
    };
    match encoding {
-      0 => Ok(frame[1..text_end]
-         .iter()
-         .map(|c| *c as char)
-         .collect()), // IS0 5859,
+      0 => Ok(frame[1..text_end].iter().map(|c| *c as char).collect()), // IS0 5859,
       1 => {
          let text_data = &frame[1..text_end];
          if text_data.len() % 2 != 0 {
             return Err(TextDecodeError::InvalidUtf16);
          }
          let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
-         unsafe { std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len()) };
+         unsafe {
+            std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len())
+         };
          Ok(Cow::from(String::from_utf16(&buffer)?))
       } // UTF 16 with BOM
-      2 => unimplemented!(), // UTF 16 BE NO BOM
-      3 => Ok(Cow::from(std::str::from_utf8(
-         &frame[1..text_end],
-      )?)), // UTF 8
+      2 => unimplemented!(),                                            // UTF 16 BE NO BOM
+      3 => Ok(Cow::from(std::str::from_utf8(&frame[1..text_end])?)),    // UTF 8
       _ => unreachable!(),
    }
 }

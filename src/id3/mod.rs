@@ -3,9 +3,9 @@ use std::io::{self, Read, Seek};
 use std::str::Utf8Error;
 use std::string::FromUtf16Error;
 
-pub mod v24;
-mod v23;
 mod v22;
+mod v23;
+pub mod v24;
 
 enum TagFlags {
    V24(v24::TagFlags),
@@ -50,7 +50,7 @@ impl From<Utf8Error> for TextDecodeError {
 }
 
 pub struct Parser {
-   inner: Box<dyn Iterator<Item=Result<v24::Frame, TextDecodeError>>>,
+   inner: Box<dyn Iterator<Item = Result<v24::Frame, TextDecodeError>>>,
 }
 
 impl Iterator for Parser {
@@ -107,12 +107,8 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
             inner: Box::new(v24::Parser::new(frames)),
          })
       }
-      TagFlags::V23(_flags) => {
-         Err(TagParseError::UnsupportedVersion(3))
-      }
-      TagFlags::V22(_flags) => {
-         Err(TagParseError::UnsupportedVersion(2))
-      }
+      TagFlags::V23(_flags) => Err(TagParseError::UnsupportedVersion(3)),
+      TagFlags::V22(_flags) => Err(TagParseError::UnsupportedVersion(2)),
    }
 }
 
