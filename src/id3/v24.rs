@@ -103,7 +103,6 @@ impl FromStr for Track {
    type Err = ParseTrackError;
 
    fn from_str(s: &str) -> Result<Track, ParseTrackError> {
-      println!("PARSING: {}", s);
       let mut iter = s.splitn(2, '/');
       let track_number = iter.next().unwrap().parse()?;
       let track_max_result = iter.next().map(|x| x.parse());
