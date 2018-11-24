@@ -47,9 +47,7 @@ fn main() {
             println!("ID3v24");
             for frame in parser {
                match frame {
-                  Err(e) => {
-                     println!("Failed to parse frame {:?}", e);
-                  }
+                  Err(e) => println!("Failed to parse frame {:?}", e),
                   Ok(frame) => match frame {
                      id3::v24::OwnedFrame::TALB(x) => println!("Album: {}", x),
                      id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
