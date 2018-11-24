@@ -39,9 +39,10 @@ impl Parser {
    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Frame<'a> {
    TALB(Cow<'a, str>),
+   TCOM(Cow<'a, str>),
    TCON(Cow<'a, str>),
    TIT2(Cow<'a, str>),
    TPE1(Cow<'a, str>),
@@ -57,6 +58,7 @@ impl<'a> Frame<'a> {
    pub fn to_owned(&self) -> OwnedFrame {
       match self {
          Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
+         Frame::TCOM(v) => OwnedFrame::TCOM(v.to_string()),
          Frame::TCON(v) => OwnedFrame::TCON(v.to_string()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
          Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
@@ -72,6 +74,7 @@ impl<'a> Frame<'a> {
    pub fn into_owned(self) -> OwnedFrame {
       match self {
          Frame::TALB(v) => OwnedFrame::TALB(v.into_owned()),
+         Frame::TCOM(v) => OwnedFrame::TCOM(v.into_owned()),
          Frame::TCON(v) => OwnedFrame::TCON(v.into_owned()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.into_owned()),
          Frame::TPE1(v) => OwnedFrame::TPE1(v.into_owned()),
@@ -84,9 +87,10 @@ impl<'a> Frame<'a> {
    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum OwnedFrame {
    TALB(String),
+   TCOM(String),
    TCON(String),
    TIT2(String),
    TPE1(String),
@@ -123,7 +127,7 @@ impl FromStr for Track {
    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UnknownFrame<'a> {
    pub name: [u8; 4],
    pub data: &'a [u8],
@@ -141,7 +145,7 @@ impl<'a> UnknownFrame<'a> {
    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UnknownOwnedFrame {
    pub name: [u8; 4],
    pub data: Box<[u8]>,
@@ -184,6 +188,7 @@ impl Iterator for Parser {
       let result: Result<Frame, FrameParseErrorReason> = try {
          match &name {
             b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?),
+            b"TCOM" => Frame::TCOM(decode_text_frame(frame_bytes)?),
             b"TCON" => {
                let genre = decode_text_frame(frame_bytes)?;
                let genre = match genre.as_ref() {
@@ -276,7 +281,7 @@ impl Iterator for Parser {
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
             b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?),
             b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?),
-            b"TPE3" => Frame::TPE2(decode_text_frame(frame_bytes)?),
+            b"TPE3" => Frame::TPE3(decode_text_frame(frame_bytes)?),
             b"TPOS" => Frame::TPOS(decode_text_frame(frame_bytes)?.parse()?),
             b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
             _ => Frame::Unknown(UnknownFrame {
