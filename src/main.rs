@@ -47,13 +47,13 @@ fn main() {
             println!("ID3v24");
             for frame in parser {
                match frame.unwrap() {
-                  id3::v24::Frame::TALB(x) => println!("Album: {}", x),
-                  id3::v24::Frame::TCON(x) => println!("Genre: {}", x),
-                  id3::v24::Frame::TIT2(x) => println!("Title: {}", x),
-                  id3::v24::Frame::TPE1(x) => println!("Artist: {}", x),
-                  id3::v24::Frame::TPE2(x) => println!("Album Artist: {}", x),
-                  id3::v24::Frame::TRCK(x) => println!("Track: {:?}", x),
-                  id3::v24::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
+                  id3::v24::OwnedFrame::TALB(x) => println!("Album: {}", x),
+                  id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
+                  id3::v24::OwnedFrame::TIT2(x) => println!("Title: {}", x),
+                  id3::v24::OwnedFrame::TPE1(x) => println!("Artist: {}", x),
+                  id3::v24::OwnedFrame::TPE2(x) => println!("Album Artist: {}", x),
+                  id3::v24::OwnedFrame::TRCK(x) => println!("Track: {:?}", x),
+                  id3::v24::OwnedFrame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
                }
             }
          }

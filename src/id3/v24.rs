@@ -1,6 +1,7 @@
 use super::{decode_text_frame, synchsafe_u32_to_u32, FrameParseError, ParseTrackError};
 use byteorder::{BigEndian, ByteOrder};
 use std::str::FromStr;
+use std::borrow::Cow;
 
 bitflags! {
    pub(super) struct FrameFlags: u16 {
@@ -39,17 +40,55 @@ impl Parser {
 }
 
 #[derive(Debug)]
-pub enum Frame {
+pub enum Frame<'a> {
+   TALB(Cow<'a, str>),
+   TCON(Cow<'a, str>),
+   TIT2(Cow<'a, str>),
+   TPE1(Cow<'a, str>),
+   TPE2(Cow<'a, str>),
+   TRCK(Track),
+   Unknown(UnknownFrame<'a>),
+}
+
+impl<'a> Frame<'a> {
+   pub fn to_owned(&self) -> OwnedFrame {
+      match self {
+         Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
+         Frame::TCON(v) => OwnedFrame::TCON(v.to_string()),
+         Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
+         Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
+         Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
+         Frame::TRCK(v) => OwnedFrame::TRCK(v.clone()),
+         Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
+      }
+   }
+
+   /// Should be preferred over `to_owned` if you no longer need a reference.
+   pub fn into_owned(self) -> OwnedFrame {
+      match self {
+         Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
+         Frame::TCON(v) => OwnedFrame::TCON(v.to_string()),
+         Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
+         Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
+         Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
+         Frame::TRCK(v) => OwnedFrame::TRCK(v),
+         Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
+      }
+   }
+}
+
+#[derive(Debug)]
+pub enum OwnedFrame {
    TALB(String),
    TCON(String),
    TIT2(String),
    TPE1(String),
    TPE2(String),
    TRCK(Track),
-   Unknown(UnknownFrame),
+   Unknown(UnknownOwnedFrame),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Track {
    pub track_number: u64,
    pub track_max: Option<u64>,
@@ -76,15 +115,33 @@ impl FromStr for Track {
 }
 
 #[derive(Debug)]
-pub struct UnknownFrame {
+pub struct UnknownFrame<'a> {
+   pub name: [u8; 4],
+   pub data: &'a [u8],
+}
+
+impl<'a> UnknownFrame<'a> {
+   fn to_owned(&self) -> UnknownOwnedFrame {
+      let mut owned_bytes = vec![0; self.data.len()].into_boxed_slice();
+      owned_bytes.copy_from_slice(self.data);
+
+      UnknownOwnedFrame {
+         name: self.name,
+         data: owned_bytes,
+      }
+   }
+}
+
+#[derive(Debug)]
+pub struct UnknownOwnedFrame {
    pub name: [u8; 4],
    pub data: Box<[u8]>,
 }
 
 impl Iterator for Parser {
-   type Item = Result<Frame, FrameParseError>;
+   type Item = Result<OwnedFrame, FrameParseError>;
 
-   fn next(&mut self) -> Option<Result<Frame, FrameParseError>> {
+   fn next(&mut self) -> Option<Result<OwnedFrame, FrameParseError>> {
       if self.content.len() - self.cursor < 10 {
          return None;
       }
@@ -111,110 +168,108 @@ impl Iterator for Parser {
 
       let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
 
-      let result = try {
+      let result: Result<Frame, FrameParseError> = try {
          match name {
-            b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?.into()),
+            b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?),
             b"TCON" => {
                let genre = decode_text_frame(frame_bytes)?;
                let genre = match genre.as_ref() {
-                  "0" => "Blues",
-                  "1" => "Classic Rock",
-                  "2" => "Country",
-                  "3" => "Dance",
-                  "4" => "Disco",
-                  "5" => "Funk",
-                  "6" => "Grunge",
-                  "7" => "Hip-Hop",
-                  "8" => "Jazz",
-                  "9" => "Metal",
-                  "10" => "New Age",
-                  "11" => "Oldies",
-                  "12" => "Other",
-                  "13" => "Pop",
-                  "14" => "R&B",
-                  "15" => "Rap",
-                  "16" => "Reggae",
-                  "17" => "Rock",
-                  "18" => "Techno",
-                  "19" => "Industrial",
-                  "20" => "Alternative",
-                  "21" => "Ska",
-                  "22" => "Death Metal",
-                  "23" => "Pranks",
-                  "24" => "Soundtrack",
-                  "25" => "Euro-Techno",
-                  "26" => "Ambient",
-                  "27" => "Trip-Hop",
-                  "28" => "Vocal",
-                  "29" => "Jazz+Funk",
-                  "30" => "Fusion",
-                  "31" => "Trance",
-                  "32" => "Classical",
-                  "33" => "Instrumental",
-                  "34" => "Acid",
-                  "35" => "House",
-                  "36" => "Game",
-                  "37" => "Sound Clip",
-                  "38" => "Gospel",
-                  "39" => "Noise",
-                  "40" => "AlternRock",
-                  "41" => "Bass",
-                  "42" => "Soul",
-                  "43" => "Punk",
-                  "44" => "Space",
-                  "45" => "Meditative",
-                  "46" => "Instrumental Pop",
-                  "47" => "Instrumental Rock",
-                  "48" => "Ethnic",
-                  "49" => "Gothic",
-                  "50" => "Darkwave",
-                  "51" => "Techno-Industrial",
-                  "52" => "Electronic",
-                  "53" => "Pop-Folk",
-                  "54" => "Eurodance",
-                  "55" => "Dream",
-                  "56" => "Southern Rock",
-                  "57" => "Comedy",
-                  "58" => "Cult",
-                  "59" => "Gangsta",
-                  "60" => "Top 40",
-                  "61" => "Christian Rap",
-                  "62" => "Pop/Funk",
-                  "63" => "Jungle",
-                  "64" => "Native American",
-                  "65" => "Cabaret",
-                  "66" => "New Wave",
-                  "67" => "Psychedelic",
-                  "68" => "Rave",
-                  "69" => "Showtunes",
-                  "70" => "Trailer",
-                  "71" => "Lo-Fi",
-                  "72" => "Tribal",
-                  "73" => "Acid Punk",
-                  "74" => "Acid Jazz",
-                  "75" => "Polka",
-                  "76" => "Retro",
-                  "77" => "Musical",
-                  "78" => "Rock & Roll",
-                  "79" => "Hard Rock",
-                  "RX" => "Remix",
-                  "CR" => "Cover",
-                  _ => genre.as_ref(),
+                  "0" => Cow::Borrowed("Blues"),
+                  "1" => Cow::Borrowed("Classic Rock"),
+                  "2" => Cow::Borrowed("Country"),
+                  "3" => Cow::Borrowed("Dance"),
+                  "4" => Cow::Borrowed("Disco"),
+                  "5" => Cow::Borrowed("Funk"),
+                  "6" => Cow::Borrowed("Grunge"),
+                  "7" => Cow::Borrowed("Hip-Hop"),
+                  "8" => Cow::Borrowed("Jazz"),
+                  "9" => Cow::Borrowed("Metal"),
+                  "10" => Cow::Borrowed("New Age"),
+                  "11" => Cow::Borrowed("Oldies"),
+                  "12" => Cow::Borrowed("Other"),
+                  "13" => Cow::Borrowed("Pop"),
+                  "14" => Cow::Borrowed("R&B"),
+                  "15" => Cow::Borrowed("Rap"),
+                  "16" => Cow::Borrowed("Reggae"),
+                  "17" => Cow::Borrowed("Rock"),
+                  "18" => Cow::Borrowed("Techno"),
+                  "19" => Cow::Borrowed("Industrial"),
+                  "20" => Cow::Borrowed("Alternative"),
+                  "21" => Cow::Borrowed("Ska"),
+                  "22" => Cow::Borrowed("Death Metal"),
+                  "23" => Cow::Borrowed("Pranks"),
+                  "24" => Cow::Borrowed("Soundtrack"),
+                  "25" => Cow::Borrowed("Euro-Techno"),
+                  "26" => Cow::Borrowed("Ambient"),
+                  "27" => Cow::Borrowed("Trip-Hop"),
+                  "28" => Cow::Borrowed("Vocal"),
+                  "29" => Cow::Borrowed("Jazz+Funk"),
+                  "30" => Cow::Borrowed("Fusion"),
+                  "31" => Cow::Borrowed("Trance"),
+                  "32" => Cow::Borrowed("Classical"),
+                  "33" => Cow::Borrowed("Instrumental"),
+                  "34" => Cow::Borrowed("Acid"),
+                  "35" => Cow::Borrowed("House"),
+                  "36" => Cow::Borrowed("Game"),
+                  "37" => Cow::Borrowed("Sound Clip"),
+                  "38" => Cow::Borrowed("Gospel"),
+                  "39" => Cow::Borrowed("Noise"),
+                  "40" => Cow::Borrowed("AlternRock"),
+                  "41" => Cow::Borrowed("Bass"),
+                  "42" => Cow::Borrowed("Soul"),
+                  "43" => Cow::Borrowed("Punk"),
+                  "44" => Cow::Borrowed("Space"),
+                  "45" => Cow::Borrowed("Meditative"),
+                  "46" => Cow::Borrowed("Instrumental Pop"),
+                  "47" => Cow::Borrowed("Instrumental Rock"),
+                  "48" => Cow::Borrowed("Ethnic"),
+                  "49" => Cow::Borrowed("Gothic"),
+                  "50" => Cow::Borrowed("Darkwave"),
+                  "51" => Cow::Borrowed("Techno-Industrial"),
+                  "52" => Cow::Borrowed("Electronic"),
+                  "53" => Cow::Borrowed("Pop-Folk"),
+                  "54" => Cow::Borrowed("Eurodance"),
+                  "55" => Cow::Borrowed("Dream"),
+                  "56" => Cow::Borrowed("Southern Rock"),
+                  "57" => Cow::Borrowed("Comedy"),
+                  "58" => Cow::Borrowed("Cult"),
+                  "59" => Cow::Borrowed("Gangsta"),
+                  "60" => Cow::Borrowed("Top 40"),
+                  "61" => Cow::Borrowed("Christian Rap"),
+                  "62" => Cow::Borrowed("Pop/Funk"),
+                  "63" => Cow::Borrowed("Jungle"),
+                  "64" => Cow::Borrowed("Native American"),
+                  "65" => Cow::Borrowed("Cabaret"),
+                  "66" => Cow::Borrowed("New Wave"),
+                  "67" => Cow::Borrowed("Psychedelic"),
+                  "68" => Cow::Borrowed("Rave"),
+                  "69" => Cow::Borrowed("Showtunes"),
+                  "70" => Cow::Borrowed("Trailer"),
+                  "71" => Cow::Borrowed("Lo-Fi"),
+                  "72" => Cow::Borrowed("Tribal"),
+                  "73" => Cow::Borrowed("Acid Punk"),
+                  "74" => Cow::Borrowed("Acid Jazz"),
+                  "75" => Cow::Borrowed("Polka"),
+                  "76" => Cow::Borrowed("Retro"),
+                  "77" => Cow::Borrowed("Musical"),
+                  "78" => Cow::Borrowed("Rock & Roll"),
+                  "79" => Cow::Borrowed("Hard Rock"),
+                  "RX" => Cow::Borrowed("Remix"),
+                  "CR" => Cow::Borrowed("Cover"),
+                  _ => genre,
                };
-               Frame::TCON(genre.into())
+               Frame::TCON(genre)
             }
-            b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?.into()),
-            b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?.into()),
-            b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?.into()),
+            b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
+            b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?),
+            b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?),
             b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
             _ => {
-               let mut owned_name = [0; 4];
+               let mut owned_name: [u8; 4] = [0; 4];
                owned_name.copy_from_slice(name);
-               let mut owned_bytes = vec![0; frame_size as usize].into_boxed_slice();
-               owned_bytes.copy_from_slice(frame_bytes);
                Frame::Unknown(UnknownFrame {
                   name: owned_name,
-                  data: owned_bytes,
+                  data: frame_bytes,
                })
             }
          }
@@ -222,6 +277,6 @@ impl Iterator for Parser {
 
       self.cursor += frame_size as usize;
 
-      Some(result)
+      Some(result.map(|v| v.into_owned()))
    }
 }

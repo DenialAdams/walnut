@@ -83,13 +83,13 @@ impl From<ParseIntError> for ParseTrackError {
 }
 
 pub struct Parser {
-   inner: Box<dyn Iterator<Item = Result<v24::Frame, FrameParseError>>>,
+   inner: Box<dyn Iterator<Item = Result<v24::OwnedFrame, FrameParseError>>>,
 }
 
 impl Iterator for Parser {
-   type Item = Result<v24::Frame, FrameParseError>;
+   type Item = Result<v24::OwnedFrame, FrameParseError>;
 
-   fn next(&mut self) -> Option<Result<v24::Frame, FrameParseError>> {
+   fn next(&mut self) -> Option<Result<v24::OwnedFrame, FrameParseError>> {
       self.inner.next()
    }
 }
