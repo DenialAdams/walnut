@@ -52,12 +52,15 @@ fn main() {
                      id3::v24::OwnedFrame::TALB(x) => println!("Album: {}", x),
                      id3::v24::OwnedFrame::TCOM(x) => println!("Composer: {}", x),
                      id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
+                     id3::v24::OwnedFrame::TENC(x) => println!("Encoded by: {}", x),
                      id3::v24::OwnedFrame::TIT2(x) => println!("Title: {}", x),
+                     id3::v24::OwnedFrame::TLEN(x) => println!("Length: {}ms", x),
                      id3::v24::OwnedFrame::TPE1(x) => println!("Artist: {}", x),
                      id3::v24::OwnedFrame::TPE2(x) => println!("Album Artist: {}", x),
                      id3::v24::OwnedFrame::TPE3(x) => println!("Conductor: {}", x),
                      id3::v24::OwnedFrame::TPOS(x) => println!("CD: {:?}", x),
                      id3::v24::OwnedFrame::TRCK(x) => println!("Track: {:?}", x),
+                     id3::v24::OwnedFrame::TSSE(x) => println!("Encoding settings: {:?}", x),
                      id3::v24::OwnedFrame::Unknown(u) => {
                         println!("Unknown frame: {}", String::from_utf8_lossy(&u.name))
                      }

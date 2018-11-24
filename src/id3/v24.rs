@@ -44,12 +44,15 @@ pub enum Frame<'a> {
    TALB(Cow<'a, str>),
    TCOM(Cow<'a, str>),
    TCON(Cow<'a, str>),
+   TENC(Cow<'a, str>),
    TIT2(Cow<'a, str>),
+   TLEN(u64),
    TPE1(Cow<'a, str>),
    TPE2(Cow<'a, str>),
    TPE3(Cow<'a, str>),
    TPOS(Track),
    TRCK(Track),
+   TSSE(Cow<'a, str>),
    Unknown(UnknownFrame<'a>),
 }
 
@@ -60,12 +63,15 @@ impl<'a> Frame<'a> {
          Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
          Frame::TCOM(v) => OwnedFrame::TCOM(v.to_string()),
          Frame::TCON(v) => OwnedFrame::TCON(v.to_string()),
+         Frame::TENC(v) => OwnedFrame::TENC(v.to_string()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
+         Frame::TLEN(v) => OwnedFrame::TLEN(*v),
          Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
          Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
          Frame::TPE3(v) => OwnedFrame::TPE3(v.to_string()),
          Frame::TPOS(v) => OwnedFrame::TPOS(v.clone()),
          Frame::TRCK(v) => OwnedFrame::TRCK(v.clone()),
+         Frame::TSSE(v) => OwnedFrame::TSSE(v.to_string()),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
    }
@@ -76,12 +82,15 @@ impl<'a> Frame<'a> {
          Frame::TALB(v) => OwnedFrame::TALB(v.into_owned()),
          Frame::TCOM(v) => OwnedFrame::TCOM(v.into_owned()),
          Frame::TCON(v) => OwnedFrame::TCON(v.into_owned()),
+         Frame::TENC(v) => OwnedFrame::TENC(v.into_owned()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.into_owned()),
+         Frame::TLEN(v) => OwnedFrame::TLEN(v),
          Frame::TPE1(v) => OwnedFrame::TPE1(v.into_owned()),
          Frame::TPE2(v) => OwnedFrame::TPE2(v.into_owned()),
          Frame::TPE3(v) => OwnedFrame::TPE3(v.into_owned()),
          Frame::TPOS(v) => OwnedFrame::TPOS(v),
          Frame::TRCK(v) => OwnedFrame::TRCK(v),
+         Frame::TSSE(v) => OwnedFrame::TSSE(v.into_owned()),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
    }
@@ -92,12 +101,15 @@ pub enum OwnedFrame {
    TALB(String),
    TCOM(String),
    TCON(String),
+   TENC(String),
    TIT2(String),
+   TLEN(u64),
    TPE1(String),
    TPE2(String),
    TPE3(String),
    TPOS(Track),
    TRCK(Track),
+   TSSE(String),
    Unknown(UnknownOwnedFrame),
 }
 
@@ -278,12 +290,15 @@ impl Iterator for Parser {
                };
                Frame::TCON(genre)
             }
+            b"TENC" => Frame::TENC(decode_text_frame(frame_bytes)?),
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
+            b"TLEN" => Frame::TLEN(decode_text_frame(frame_bytes)?.parse()?),
             b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?),
             b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?),
             b"TPE3" => Frame::TPE3(decode_text_frame(frame_bytes)?),
             b"TPOS" => Frame::TPOS(decode_text_frame(frame_bytes)?.parse()?),
             b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
+            b"TSSE" => Frame::TSSE(decode_text_frame(frame_bytes)?),
             _ => Frame::Unknown(UnknownFrame {
                name,
                data: frame_bytes,

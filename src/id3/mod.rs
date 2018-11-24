@@ -44,6 +44,13 @@ pub enum FrameParseErrorReason {
    EmptyFrame,
    TextDecodeError(TextDecodeError),
    ParseTrackError(ParseTrackError),
+   ParseIntError,
+}
+
+impl From<ParseIntError> for FrameParseErrorReason {
+   fn from(_e: ParseIntError) -> FrameParseErrorReason {
+      FrameParseErrorReason::ParseIntError
+   }
 }
 
 impl From<TextDecodeError> for FrameParseErrorReason {
