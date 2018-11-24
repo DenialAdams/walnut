@@ -115,7 +115,6 @@ impl Iterator for Parser {
          match name {
             b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?.into()),
             b"TCON" => {
-               // TODO RX AND CR?
                let genre = decode_text_frame(frame_bytes)?;
                let genre = match genre.as_ref() {
                   "0" => "Blues",
@@ -198,6 +197,8 @@ impl Iterator for Parser {
                   "77" => "Musical",
                   "78" => "Rock & Roll",
                   "79" => "Hard Rock",
+                  "RX" => "Remix",
+                  "CR" => "Cover",
                   _ => genre.as_ref(),
                };
                Frame::TCON(genre.into())
