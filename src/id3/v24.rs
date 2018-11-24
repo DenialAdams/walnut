@@ -1,6 +1,5 @@
 use super::{decode_text_frame, synchsafe_u32_to_u32, FrameParseError, ParseTrackError};
 use byteorder::{BigEndian, ByteOrder};
-use std;
 use std::str::FromStr;
 
 bitflags! {
@@ -60,17 +59,14 @@ impl FromStr for Track {
    type Err = ParseTrackError;
 
    fn from_str(s: &str) -> Result<Track, ParseTrackError> {
-      // I think this is safe because splitn always returns at least 1
-      // but i could just bite the bullet and check it
-      let mut track_number = unsafe { std::mem::uninitialized() };
-      let mut track_max = None;
-      for (i, snum) in s.splitn(2, '/').enumerate() {
-         if i == 0 {
-            track_number = snum.parse()?;
-         } else if i == 1 {
-            track_max = Some(snum.parse()?);
-         }
-      }
+      let mut iter = s.splitn(2, '/');
+      let track_number = iter.next().unwrap().parse()?;
+      let track_max_result = iter.next().map(|x| x.parse());
+
+      let track_max = match track_max_result {
+         Some(v) => Some(v?),
+         None => None,
+      };
 
       Ok(Track {
          track_number,
@@ -115,7 +111,7 @@ impl Iterator for Parser {
 
       let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
 
-      let result = do catch {
+      let result = try {
          match name {
             b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?.into()),
             b"TCON" => {

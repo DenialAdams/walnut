@@ -1,10 +1,10 @@
 use byteorder::{BigEndian, ByteOrder};
-use std::io::{self, Read, Seek};
 use std;
 use std::borrow::Cow;
+use std::io::{self, Read, Seek};
+use std::num::ParseIntError;
 use std::str::Utf8Error;
 use std::string::FromUtf16Error;
-use std::num::ParseIntError;
 
 mod v22;
 mod v23;
