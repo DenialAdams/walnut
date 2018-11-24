@@ -59,7 +59,9 @@ fn main() {
                      id3::v24::OwnedFrame::TPE2(x) => println!("Album Artist: {}", x),
                      id3::v24::OwnedFrame::TPE3(x) => println!("Conductor: {}", x),
                      id3::v24::OwnedFrame::TPOS(x) => println!("CD: {:?}", x),
+                     id3::v24::OwnedFrame::TPUB(x) => println!("Publisher: {:?}", x),
                      id3::v24::OwnedFrame::TRCK(x) => println!("Track: {:?}", x),
+                     id3::v24::OwnedFrame::TSOP(x) => println!("Artist name for sorting: {}", x),
                      id3::v24::OwnedFrame::TSSE(x) => println!("Encoding settings: {:?}", x),
                      id3::v24::OwnedFrame::Unknown(u) => {
                         println!("Unknown frame: {}", String::from_utf8_lossy(&u.name))

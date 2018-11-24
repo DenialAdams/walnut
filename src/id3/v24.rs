@@ -51,7 +51,9 @@ pub enum Frame<'a> {
    TPE2(Cow<'a, str>),
    TPE3(Cow<'a, str>),
    TPOS(Track),
+   TPUB(Cow<'a, str>),
    TRCK(Track),
+   TSOP(Cow<'a, str>),
    TSSE(Cow<'a, str>),
    Unknown(UnknownFrame<'a>),
 }
@@ -70,7 +72,9 @@ impl<'a> Frame<'a> {
          Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
          Frame::TPE3(v) => OwnedFrame::TPE3(v.to_string()),
          Frame::TPOS(v) => OwnedFrame::TPOS(v.clone()),
+         Frame::TPUB(v) => OwnedFrame::TPUB(v.to_string()),
          Frame::TRCK(v) => OwnedFrame::TRCK(v.clone()),
+         Frame::TSOP(v) => OwnedFrame::TSOP(v.to_string()),
          Frame::TSSE(v) => OwnedFrame::TSSE(v.to_string()),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
@@ -89,7 +93,9 @@ impl<'a> Frame<'a> {
          Frame::TPE2(v) => OwnedFrame::TPE2(v.into_owned()),
          Frame::TPE3(v) => OwnedFrame::TPE3(v.into_owned()),
          Frame::TPOS(v) => OwnedFrame::TPOS(v),
+         Frame::TPUB(v) => OwnedFrame::TPUB(v.into_owned()),
          Frame::TRCK(v) => OwnedFrame::TRCK(v),
+         Frame::TSOP(v) => OwnedFrame::TSOP(v.into_owned()),
          Frame::TSSE(v) => OwnedFrame::TSSE(v.into_owned()),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
@@ -107,8 +113,10 @@ pub enum OwnedFrame {
    TPE1(String),
    TPE2(String),
    TPE3(String),
+   TPUB(String),
    TPOS(Track),
    TRCK(Track),
+   TSOP(String),
    TSSE(String),
    Unknown(UnknownOwnedFrame),
 }
@@ -297,7 +305,9 @@ impl Iterator for Parser {
             b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?),
             b"TPE3" => Frame::TPE3(decode_text_frame(frame_bytes)?),
             b"TPOS" => Frame::TPOS(decode_text_frame(frame_bytes)?.parse()?),
+            b"TPUB" => Frame::TPUB(decode_text_frame(frame_bytes)?),
             b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
+            b"TSOP" => Frame::TSOP(decode_text_frame(frame_bytes)?),
             b"TSSE" => Frame::TSSE(decode_text_frame(frame_bytes)?),
             _ => Frame::Unknown(UnknownFrame {
                name,
