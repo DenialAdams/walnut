@@ -186,23 +186,18 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
    let encoding = frame[0];
 
    // Adjust length to account for trailing nulls (if present)
-   let text_end = if encoding == 0 || encoding == 3 {
+   let mut text_end = frame.len();
+   if encoding == 0 || encoding == 3 {
       // 1 byte per char, 1 null at end
       if frame[frame.len() - 1] == 0 {
-         frame.len() as usize - 1
-      } else {
-         frame.len() as usize
+         text_end -= 1
       }
    } else if encoding == 1 || encoding == 2 {
       // 2 bytes per char, 2 nulls at end
       if &frame[frame.len() - 2..frame.len()] == b"\0\0" {
-         frame.len() - 2
-      } else {
-         frame.len()
+         text_end -= 2
       }
-   } else {
-      return Err(TextDecodeError::UnknownEncoding(encoding));
-   };
+   }
 
    match encoding {
       0 => Ok(frame[1..text_end].iter().map(|c| *c as char).collect()), // IS0 5859,
@@ -224,7 +219,7 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
       } // UTF-16 with BOM
       2 => unimplemented!(),                                            // UTF-16 BE NO BOM
       3 => Ok(Cow::from(std::str::from_utf8(&frame[1..text_end])?)),    // UTF-8
-      _ => unsafe { std::hint::unreachable_unchecked() },
+      _ => Err(TextDecodeError::UnknownEncoding(encoding)),
    }
 }
 
