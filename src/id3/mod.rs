@@ -215,6 +215,7 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
          if text_data.len() % 2 != 0 {
             return Err(TextDecodeError::InvalidUtf16);
          }
+         // The intermediate buffer is needed due to alignment concerns, I think
          let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
          unsafe {
             std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len())
@@ -223,7 +224,7 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
       } // UTF-16 with BOM
       2 => unimplemented!(),                                            // UTF-16 BE NO BOM
       3 => Ok(Cow::from(std::str::from_utf8(&frame[1..text_end])?)),    // UTF-8
-      _ => unreachable!(),
+      _ => unsafe { std::hint::unreachable_unchecked() },
    }
 }
 
