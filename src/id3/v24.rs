@@ -1,7 +1,7 @@
-use super::{decode_text_frame, synchsafe_u32_to_u32, FrameParseError, ParseTrackError};
+use super::{decode_text_frame, synchsafe_u32_to_u32, FrameParseError, FrameParseErrorReason, ParseTrackError};
 use byteorder::{BigEndian, ByteOrder};
-use std::str::FromStr;
 use std::borrow::Cow;
+use std::str::FromStr;
 
 bitflags! {
    pub(super) struct FrameFlags: u16 {
@@ -46,11 +46,13 @@ pub enum Frame<'a> {
    TIT2(Cow<'a, str>),
    TPE1(Cow<'a, str>),
    TPE2(Cow<'a, str>),
+   TPOS(Track),
    TRCK(Track),
    Unknown(UnknownFrame<'a>),
 }
 
 impl<'a> Frame<'a> {
+   /// Prefer `into_owned` if this `Frame` does not need to be used anymore
    pub fn to_owned(&self) -> OwnedFrame {
       match self {
          Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
@@ -58,12 +60,13 @@ impl<'a> Frame<'a> {
          Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
          Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
          Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
+         Frame::TPOS(v) => OwnedFrame::TPOS(v.clone()),
          Frame::TRCK(v) => OwnedFrame::TRCK(v.clone()),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
    }
 
-   /// Should be preferred over `to_owned` if you no longer need a reference.
+   /// Should be preferred over `to_owned` if you no longer need the `Frame`
    pub fn into_owned(self) -> OwnedFrame {
       match self {
          Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
@@ -71,6 +74,7 @@ impl<'a> Frame<'a> {
          Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
          Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
          Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
+         Frame::TPOS(v) => OwnedFrame::TPOS(v),
          Frame::TRCK(v) => OwnedFrame::TRCK(v),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
@@ -84,6 +88,7 @@ pub enum OwnedFrame {
    TIT2(String),
    TPE1(String),
    TPE2(String),
+   TPOS(Track),
    TRCK(Track),
    Unknown(UnknownOwnedFrame),
 }
@@ -98,6 +103,7 @@ impl FromStr for Track {
    type Err = ParseTrackError;
 
    fn from_str(s: &str) -> Result<Track, ParseTrackError> {
+      println!("PARSING: {}", s);
       let mut iter = s.splitn(2, '/');
       let track_number = iter.next().unwrap().parse()?;
       let track_max_result = iter.next().map(|x| x.parse());
@@ -146,8 +152,9 @@ impl Iterator for Parser {
          return None;
       }
 
-      let name = &self.content[self.cursor..self.cursor + 4];
-      if name == b"\0\0\0\0" {
+      let mut name: [u8; 4] = [0; 4];
+      name.copy_from_slice(&self.content[self.cursor..self.cursor + 4]);
+      if &name == b"\0\0\0\0" {
          // Padding or end of buffer
          return None;
       }
@@ -163,13 +170,16 @@ impl Iterator for Parser {
       self.cursor += 10;
 
       if frame_size == 0 {
-         return Some(Err(FrameParseError::EmptyFrame));
+         return Some(Err(FrameParseError {
+            name: name,
+            reason: FrameParseErrorReason::EmptyFrame,
+         }));
       }
 
       let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
 
-      let result: Result<Frame, FrameParseError> = try {
-         match name {
+      let result: Result<Frame, FrameParseErrorReason> = try {
+         match &name {
             b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?),
             b"TCON" => {
                let genre = decode_text_frame(frame_bytes)?;
@@ -263,20 +273,21 @@ impl Iterator for Parser {
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
             b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?),
             b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?),
+            b"TPOS" => Frame::TPOS(decode_text_frame(frame_bytes)?.parse()?),
             b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
-            _ => {
-               let mut owned_name: [u8; 4] = [0; 4];
-               owned_name.copy_from_slice(name);
-               Frame::Unknown(UnknownFrame {
-                  name: owned_name,
-                  data: frame_bytes,
-               })
-            }
+            _ => Frame::Unknown(UnknownFrame {
+               name,
+               data: frame_bytes,
+            }),
          }
       };
 
       self.cursor += frame_size as usize;
 
-      Some(result.map(|v| v.into_owned()))
+      Some(
+         result
+            .map(|v| v.into_owned())
+            .map_err(|e| FrameParseError { name, reason: e }),
+      )
    }
 }

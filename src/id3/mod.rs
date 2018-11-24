@@ -34,21 +34,27 @@ impl From<io::Error> for TagParseError {
 // https://github.com/rust-lang/rust/issues/44265
 
 #[derive(Debug)]
-pub enum FrameParseError {
+pub struct FrameParseError {
+   name: [u8; 4],
+   reason: FrameParseErrorReason,
+}
+
+#[derive(Debug)]
+pub enum FrameParseErrorReason {
    EmptyFrame,
    TextDecodeError(TextDecodeError),
    ParseTrackError(ParseTrackError),
 }
 
-impl From<TextDecodeError> for FrameParseError {
-   fn from(e: TextDecodeError) -> FrameParseError {
-      FrameParseError::TextDecodeError(e)
+impl From<TextDecodeError> for FrameParseErrorReason {
+   fn from(e: TextDecodeError) -> FrameParseErrorReason {
+      FrameParseErrorReason::TextDecodeError(e)
    }
 }
 
-impl From<ParseTrackError> for FrameParseError {
-   fn from(e: ParseTrackError) -> FrameParseError {
-      FrameParseError::ParseTrackError(e)
+impl From<ParseTrackError> for FrameParseErrorReason {
+   fn from(e: ParseTrackError) -> FrameParseErrorReason {
+      FrameParseErrorReason::ParseTrackError(e)
    }
 }
 
