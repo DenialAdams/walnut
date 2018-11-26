@@ -1,4 +1,4 @@
-#![feature(try_blocks)]
+#![feature(try_blocks, try_from)]
 
 extern crate byteorder;
 #[macro_use]
@@ -47,12 +47,19 @@ fn main() {
             println!("ID3v24");
             for frame in parser {
                match frame {
-                  Err(e) => println!("Failed to parse frame {:?}", e),
+                  Err(e) => println!(
+                     "Failed to parse frame {}: {:?}",
+                     String::from_utf8_lossy(&e.name),
+                     e.reason
+                  ),
                   Ok(frame) => match frame {
+                     id3::v24::OwnedFrame::COMM(x) => println!("Comment: {:?}", x),
+                     id3::v24::OwnedFrame::PRIV(x) => println!("Private: {:?}", x),
                      id3::v24::OwnedFrame::TALB(x) => println!("Album: {}", x),
                      id3::v24::OwnedFrame::TCOM(x) => println!("Composer: {}", x),
                      id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
-                     id3::v24::OwnedFrame::TDRC(x) => println!("Date: {:?}", x),
+                     id3::v24::OwnedFrame::TDRC(x) => println!("Recording Date: {:?}", x),
+                     id3::v24::OwnedFrame::TDRL(x) => println!("Release Date: {:?}", x),
                      id3::v24::OwnedFrame::TENC(x) => println!("Encoded by: {}", x),
                      id3::v24::OwnedFrame::TIT2(x) => println!("Title: {}", x),
                      id3::v24::OwnedFrame::TLEN(x) => println!("Length: {}ms", x),

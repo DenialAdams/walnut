@@ -1,14 +1,14 @@
 use byteorder::{BigEndian, ByteOrder};
 use std;
-use std::borrow::Cow;
 use std::io::{self, Read, Seek};
-use std::num::ParseIntError;
-use std::str::Utf8Error;
-use std::string::FromUtf16Error;
 
 mod v22;
 mod v23;
 pub mod v24;
+
+// TODO STREAMING ITERATOR
+// IT WILL PREVENT ALLOCATIONS AND MAKE DREAMS REAL
+// https://github.com/rust-lang/rust/issues/44265
 
 enum TagFlags {
    V24(v24::TagFlags),
@@ -29,99 +29,14 @@ impl From<io::Error> for TagParseError {
    }
 }
 
-// TODO STREAMING ITERATOR
-// IT WILL PREVENT ALLOCATIONS AND MAKE DREAMS REAL
-// https://github.com/rust-lang/rust/issues/44265
-
-#[derive(Clone, Debug)]
-pub struct FrameParseError {
-   name: [u8; 4],
-   reason: FrameParseErrorReason,
-}
-
-#[derive(Clone, Debug)]
-pub enum FrameParseErrorReason {
-   EmptyFrame,
-   TextDecodeError(TextDecodeError),
-   ParseTrackError(ParseTrackError),
-   ParseDateError(ParseDateError),
-   ParseIntError(ParseIntError),
-}
-
-impl From<ParseIntError> for FrameParseErrorReason {
-   fn from(e: ParseIntError) -> FrameParseErrorReason {
-      FrameParseErrorReason::ParseIntError(e)
-   }
-}
-
-impl From<TextDecodeError> for FrameParseErrorReason {
-   fn from(e: TextDecodeError) -> FrameParseErrorReason {
-      FrameParseErrorReason::TextDecodeError(e)
-   }
-}
-
-impl From<ParseTrackError> for FrameParseErrorReason {
-   fn from(e: ParseTrackError) -> FrameParseErrorReason {
-      FrameParseErrorReason::ParseTrackError(e)
-   }
-}
-
-impl From<ParseDateError> for FrameParseErrorReason {
-   fn from(e: ParseDateError) -> FrameParseErrorReason {
-      FrameParseErrorReason::ParseDateError(e)
-   }
-}
-
-#[derive(Clone, Debug)]
-pub enum TextDecodeError {
-   InvalidUtf16,
-   InvalidUtf8,
-   UnknownEncoding(u8),
-}
-
-impl From<FromUtf16Error> for TextDecodeError {
-   fn from(_: FromUtf16Error) -> TextDecodeError {
-      TextDecodeError::InvalidUtf16
-   }
-}
-
-impl From<Utf8Error> for TextDecodeError {
-   fn from(_: Utf8Error) -> TextDecodeError {
-      TextDecodeError::InvalidUtf8
-   }
-}
-
-#[derive(Clone, Debug)]
-pub enum ParseTrackError {
-   InvalidTrackNumber(ParseIntError),
-}
-
-impl From<ParseIntError> for ParseTrackError {
-   fn from(e: ParseIntError) -> ParseTrackError {
-      ParseTrackError::InvalidTrackNumber(e)
-   }
-}
-
-#[derive(Clone, Debug)]
-pub enum ParseDateError {
-   MissingYear,
-   ParseIntError(ParseIntError),
-}
-
-impl From<ParseIntError> for ParseDateError {
-   fn from(e: ParseIntError) -> ParseDateError {
-      ParseDateError::ParseIntError(e)
-   }
-}
-
 pub struct Parser {
-   inner: Box<dyn Iterator<Item = Result<v24::OwnedFrame, FrameParseError>>>,
+   inner: Box<dyn Iterator<Item = Result<v24::OwnedFrame, v24::FrameParseError>>>,
 }
 
 impl Iterator for Parser {
-   type Item = Result<v24::OwnedFrame, FrameParseError>;
+   type Item = Result<v24::OwnedFrame, v24::FrameParseError>;
 
-   fn next(&mut self) -> Option<Result<v24::OwnedFrame, FrameParseError>> {
+   fn next(&mut self) -> Option<Result<v24::OwnedFrame, v24::FrameParseError>> {
       self.inner.next()
    }
 }
@@ -207,52 +122,6 @@ fn synchsafe_u32_to_u32(sync_int: u32) -> u32 {
    let mid_high = (sync_int & 0x00_fc_00_00) >> 2 | (sync_int & 0x07_00_00_00) >> 3;
    let high = (sync_int & 0xf8_00_00_00) >> 3;
    high | mid_high | mid_low | low
-}
-
-fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
-   if frame.len() == 1 {
-      // Only encoding is present
-      return Ok(Cow::Borrowed(""));
-   }
-
-   let encoding = frame[0];
-
-   // Adjust length to account for trailing nulls (if present)
-   let mut text_end = frame.len();
-   if encoding == 0 || encoding == 3 {
-      // 1 byte per char, 1 null at end
-      if frame[frame.len() - 1] == 0 {
-         text_end -= 1
-      }
-   } else if encoding == 1 || encoding == 2 {
-      // 2 bytes per char, 2 nulls at end
-      if &frame[frame.len() - 2..frame.len()] == b"\0\0" {
-         text_end -= 2
-      }
-   }
-
-   match encoding {
-      0 => Ok(frame[1..text_end].iter().map(|c| *c as char).collect()), // IS0 5859,
-      1 => {
-         let text_data = &frame[1..text_end];
-         if text_data[0..2] == [0xFE, 0xFF] {
-            // Big endian
-            unimplemented!();
-         }
-         if text_data.len() % 2 != 0 {
-            return Err(TextDecodeError::InvalidUtf16);
-         }
-         // The intermediate buffer is needed due to alignment concerns, I think
-         let mut buffer = vec![0u16; text_data.len() / 2].into_boxed_slice();
-         unsafe {
-            std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len())
-         };
-         Ok(Cow::Owned(String::from_utf16(&buffer[1..])?)) // 1.. to skip BOM
-      } // UTF-16 with BOM
-      2 => unimplemented!(),                                            // UTF-16 BE NO BOM
-      3 => Ok(Cow::Borrowed(std::str::from_utf8(&frame[1..text_end])?)),    // UTF-8
-      _ => Err(TextDecodeError::UnknownEncoding(encoding)),
-   }
 }
 
 mod test {
