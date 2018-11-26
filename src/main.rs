@@ -59,6 +59,7 @@ fn main() {
                      id3::v24::OwnedFrame::TBPM(x) => println!("BPM: {}", x),
                      id3::v24::OwnedFrame::TCOM(x) => println!("Composer: {}", x),
                      id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
+                     id3::v24::OwnedFrame::TDEN(x) => println!("Encoding Date: {:?}", x),
                      id3::v24::OwnedFrame::TDRC(x) => println!("Recording Date: {:?}", x),
                      id3::v24::OwnedFrame::TDRL(x) => println!("Release Date: {:?}", x),
                      id3::v24::OwnedFrame::TDTG(x) => println!("Tagging Date: {:?}", x),
