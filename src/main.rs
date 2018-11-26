@@ -52,6 +52,7 @@ fn main() {
                      id3::v24::OwnedFrame::TALB(x) => println!("Album: {}", x),
                      id3::v24::OwnedFrame::TCOM(x) => println!("Composer: {}", x),
                      id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
+                     id3::v24::OwnedFrame::TDRC(x) => println!("Date: {:?}", x),
                      id3::v24::OwnedFrame::TENC(x) => println!("Encoded by: {}", x),
                      id3::v24::OwnedFrame::TIT2(x) => println!("Title: {}", x),
                      id3::v24::OwnedFrame::TLEN(x) => println!("Length: {}ms", x),

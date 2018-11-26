@@ -33,23 +33,24 @@ impl From<io::Error> for TagParseError {
 // IT WILL PREVENT ALLOCATIONS AND MAKE DREAMS REAL
 // https://github.com/rust-lang/rust/issues/44265
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FrameParseError {
    name: [u8; 4],
    reason: FrameParseErrorReason,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum FrameParseErrorReason {
    EmptyFrame,
    TextDecodeError(TextDecodeError),
    ParseTrackError(ParseTrackError),
-   ParseIntError,
+   ParseDateError(ParseDateError),
+   ParseIntError(ParseIntError),
 }
 
 impl From<ParseIntError> for FrameParseErrorReason {
-   fn from(_e: ParseIntError) -> FrameParseErrorReason {
-      FrameParseErrorReason::ParseIntError
+   fn from(e: ParseIntError) -> FrameParseErrorReason {
+      FrameParseErrorReason::ParseIntError(e)
    }
 }
 
@@ -65,7 +66,13 @@ impl From<ParseTrackError> for FrameParseErrorReason {
    }
 }
 
-#[derive(Debug)]
+impl From<ParseDateError> for FrameParseErrorReason {
+   fn from(e: ParseDateError) -> FrameParseErrorReason {
+      FrameParseErrorReason::ParseDateError(e)
+   }
+}
+
+#[derive(Clone, Debug)]
 pub enum TextDecodeError {
    InvalidUtf16,
    InvalidUtf8,
@@ -84,7 +91,7 @@ impl From<Utf8Error> for TextDecodeError {
    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ParseTrackError {
    InvalidTrackNumber(ParseIntError),
 }
@@ -92,6 +99,18 @@ pub enum ParseTrackError {
 impl From<ParseIntError> for ParseTrackError {
    fn from(e: ParseIntError) -> ParseTrackError {
       ParseTrackError::InvalidTrackNumber(e)
+   }
+}
+
+#[derive(Clone, Debug)]
+pub enum ParseDateError {
+   MissingYear,
+   ParseIntError(ParseIntError),
+}
+
+impl From<ParseIntError> for ParseDateError {
+   fn from(e: ParseIntError) -> ParseDateError {
+      ParseDateError::ParseIntError(e)
    }
 }
 
@@ -193,7 +212,7 @@ fn synchsafe_u32_to_u32(sync_int: u32) -> u32 {
 fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
    if frame.len() == 1 {
       // Only encoding is present
-      return Ok(Cow::from(""));
+      return Ok(Cow::Borrowed(""));
    }
 
    let encoding = frame[0];
@@ -228,10 +247,10 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
          unsafe {
             std::ptr::copy_nonoverlapping::<u8>(text_data.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_data.len())
          };
-         Ok(Cow::from(String::from_utf16(&buffer[1..])?)) // 1.. to skip BOM
+         Ok(Cow::Owned(String::from_utf16(&buffer[1..])?)) // 1.. to skip BOM
       } // UTF-16 with BOM
       2 => unimplemented!(),                                            // UTF-16 BE NO BOM
-      3 => Ok(Cow::from(std::str::from_utf8(&frame[1..text_end])?)),    // UTF-8
+      3 => Ok(Cow::Borrowed(std::str::from_utf8(&frame[1..text_end])?)),    // UTF-8
       _ => Err(TextDecodeError::UnknownEncoding(encoding)),
    }
 }

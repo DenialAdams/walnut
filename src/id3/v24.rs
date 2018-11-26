@@ -1,7 +1,8 @@
-use super::{decode_text_frame, synchsafe_u32_to_u32, FrameParseError, FrameParseErrorReason, ParseTrackError};
+use super::{decode_text_frame, synchsafe_u32_to_u32, FrameParseError, FrameParseErrorReason, ParseDateError, ParseTrackError};
 use byteorder::{BigEndian, ByteOrder};
 use std::borrow::Cow;
 use std::str::FromStr;
+use std::num::ParseIntError;
 
 bitflags! {
    pub(super) struct FrameFlags: u16 {
@@ -44,6 +45,7 @@ pub enum Frame<'a> {
    TALB(Cow<'a, str>),
    TCOM(Cow<'a, str>),
    TCON(Cow<'a, str>),
+   TDRC(Date),
    TENC(Cow<'a, str>),
    TIT2(Cow<'a, str>),
    TLEN(u64),
@@ -65,6 +67,7 @@ impl<'a> Frame<'a> {
          Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
          Frame::TCOM(v) => OwnedFrame::TCOM(v.to_string()),
          Frame::TCON(v) => OwnedFrame::TCON(v.to_string()),
+         Frame::TDRC(v) => OwnedFrame::TDRC(v.clone()),
          Frame::TENC(v) => OwnedFrame::TENC(v.to_string()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
          Frame::TLEN(v) => OwnedFrame::TLEN(*v),
@@ -86,6 +89,7 @@ impl<'a> Frame<'a> {
          Frame::TALB(v) => OwnedFrame::TALB(v.into_owned()),
          Frame::TCOM(v) => OwnedFrame::TCOM(v.into_owned()),
          Frame::TCON(v) => OwnedFrame::TCON(v.into_owned()),
+         Frame::TDRC(v) => OwnedFrame::TDRC(v),
          Frame::TENC(v) => OwnedFrame::TENC(v.into_owned()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.into_owned()),
          Frame::TLEN(v) => OwnedFrame::TLEN(v),
@@ -107,6 +111,7 @@ pub enum OwnedFrame {
    TALB(String),
    TCOM(String),
    TCON(String),
+   TDRC(Date),
    TENC(String),
    TIT2(String),
    TLEN(u64),
@@ -119,6 +124,81 @@ pub enum OwnedFrame {
    TSOP(String),
    TSSE(String),
    Unknown(UnknownOwnedFrame),
+}
+
+#[derive(Clone, Debug)]
+pub struct Date {
+   pub year: u16,
+   pub month: Option<u8>,
+   pub day: Option<u8>,
+   pub hour: Option<u8>,
+   pub minutes: Option<u8>,
+   pub seconds: Option<u8>,
+}
+
+// yyyy-MM-ddTHH:mm:ss
+impl FromStr for Date {
+   type Err = ParseDateError;
+
+   fn from_str(s: &str) -> Result<Date, ParseDateError> {
+      let year: u16 = {
+         let result = s.get(0..4).map(|x| x.parse());
+         match result {
+            Some(v) => v?,
+            None => return Err(ParseDateError::MissingYear), 
+         }
+      };
+
+      let month: Option<u8> = {
+         let result = s.get(5..7).map(|x| x.parse());
+         match result {
+            Some(v) => Some(v?),
+            None => None,
+         }
+      };
+
+      let day: Option<u8> = {
+         let result = s.get(8..10).map(|x| x.parse());
+         match result {
+            Some(v) => Some(v?),
+            None => None,
+         }
+      };
+
+      let hour: Option<u8> = {
+         let result = s.get(11..13).map(|x| x.parse());
+         match result {
+            Some(v) => Some(v?),
+            None => None,
+         }
+      };
+
+      let minutes: Option<u8> = {
+         let result = s.get(14..16).map(|x| x.parse());
+         match result {
+            Some(v) => Some(v?),
+            None => None,
+         }
+      };
+
+      let seconds: Option<u8> = {
+         let result = s.get(17..19).map(|x| x.parse());
+         match result {
+            Some(v) => Some(v?),
+            None => None,
+         }
+      };
+
+
+      Ok(Date {
+         year,
+         month,
+         day,
+         hour,
+         minutes,
+         seconds,
+      })
+   }
 }
 
 #[derive(Clone, Debug)]
@@ -298,6 +378,7 @@ impl Iterator for Parser {
                };
                Frame::TCON(genre)
             }
+            b"TDRC" => Frame::TDRC(decode_text_frame(frame_bytes)?.parse()?),
             b"TENC" => Frame::TENC(decode_text_frame(frame_bytes)?),
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
             b"TLEN" => Frame::TLEN(decode_text_frame(frame_bytes)?.parse()?),
