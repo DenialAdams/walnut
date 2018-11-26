@@ -72,6 +72,7 @@ fn main() {
                      id3::v24::OwnedFrame::TIT3(x) => println!("Substitle/description refinement: {}", x),
                      id3::v24::OwnedFrame::TLEN(x) => println!("Length: {}ms", x),
                      id3::v24::OwnedFrame::TMOO(x) => println!("Mood: {}", x),
+                     id3::v24::OwnedFrame::TOPE(x) => println!("Original Artist: {}", x),
                      id3::v24::OwnedFrame::TPE1(x) => println!("Artist: {}", x),
                      id3::v24::OwnedFrame::TPE2(x) => println!("Album Artist: {}", x),
                      id3::v24::OwnedFrame::TPE3(x) => println!("Conductor: {}", x),
