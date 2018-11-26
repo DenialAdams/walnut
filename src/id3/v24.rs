@@ -107,7 +107,7 @@ impl<'a> Frame<'a> {
          Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
          Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
          Frame::TPE3(v) => OwnedFrame::TPE3(v.to_string()),
-         Frame::TPE4(v) => OwnedFrame::TPE3(v.to_string()),
+         Frame::TPE4(v) => OwnedFrame::TPE4(v.to_string()),
          Frame::TPOS(v) => OwnedFrame::TPOS(v.clone()),
          Frame::TPUB(v) => OwnedFrame::TPUB(v.to_string()),
          Frame::TRCK(v) => OwnedFrame::TRCK(v.clone()),
