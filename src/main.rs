@@ -56,10 +56,12 @@ fn main() {
                      id3::v24::OwnedFrame::COMM(x) => println!("Comment: {:?}", x),
                      id3::v24::OwnedFrame::PRIV(x) => println!("Private: {:?}", x),
                      id3::v24::OwnedFrame::TALB(x) => println!("Album: {}", x),
+                     id3::v24::OwnedFrame::TBPM(x) => println!("BPM: {}", x),
                      id3::v24::OwnedFrame::TCOM(x) => println!("Composer: {}", x),
                      id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
                      id3::v24::OwnedFrame::TDRC(x) => println!("Recording Date: {:?}", x),
                      id3::v24::OwnedFrame::TDRL(x) => println!("Release Date: {:?}", x),
+                     id3::v24::OwnedFrame::TDTG(x) => println!("Tagging Date: {:?}", x),
                      id3::v24::OwnedFrame::TENC(x) => println!("Encoded by: {}", x),
                      id3::v24::OwnedFrame::TIT2(x) => println!("Title: {}", x),
                      id3::v24::OwnedFrame::TLEN(x) => println!("Length: {}ms", x),
@@ -71,6 +73,8 @@ fn main() {
                      id3::v24::OwnedFrame::TRCK(x) => println!("Track: {:?}", x),
                      id3::v24::OwnedFrame::TSOP(x) => println!("Artist name for sorting: {}", x),
                      id3::v24::OwnedFrame::TSSE(x) => println!("Encoding settings: {:?}", x),
+                     id3::v24::OwnedFrame::TXXX(x) => println!("User defined text: {:?}", x),
+                     id3::v24::OwnedFrame::USLT(x) => println!("Lyrics: {:?}", x),
                      id3::v24::OwnedFrame::Unknown(u) => {
                         println!("Unknown frame: {}", String::from_utf8_lossy(&u.name))
                      }

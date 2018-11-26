@@ -44,13 +44,15 @@ impl Parser {
 
 #[derive(Clone, Debug)]
 pub enum Frame<'a> {
-   COMM(Comm<'a>),
+   COMM(LangDescriptionText<'a>),
    PRIV(Priv<'a>),
    TALB(Cow<'a, str>),
+   TBPM(u64),
    TCOM(Cow<'a, str>),
    TCON(Cow<'a, str>),
    TDRC(Date),
    TDRL(Date),
+   TDTG(Date),
    TENC(Cow<'a, str>),
    TIT2(Cow<'a, str>),
    TLEN(u64),
@@ -62,6 +64,8 @@ pub enum Frame<'a> {
    TRCK(Track),
    TSOP(Cow<'a, str>),
    TSSE(Cow<'a, str>),
+   TXXX(Txxx<'a>),
+   USLT(LangDescriptionText<'a>),
    Unknown(UnknownFrame<'a>),
 }
 
@@ -72,10 +76,12 @@ impl<'a> Frame<'a> {
          Frame::COMM(v) => OwnedFrame::COMM(v.to_owned()),
          Frame::PRIV(v) => OwnedFrame::PRIV(v.to_owned()),
          Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
+         Frame::TBPM(v) => OwnedFrame::TBPM(*v),
          Frame::TCOM(v) => OwnedFrame::TCOM(v.to_string()),
          Frame::TCON(v) => OwnedFrame::TCON(v.to_string()),
          Frame::TDRC(v) => OwnedFrame::TDRC(v.clone()),
          Frame::TDRL(v) => OwnedFrame::TDRL(v.clone()),
+         Frame::TDTG(v) => OwnedFrame::TDTG(v.clone()),
          Frame::TENC(v) => OwnedFrame::TENC(v.to_string()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
          Frame::TLEN(v) => OwnedFrame::TLEN(*v),
@@ -87,6 +93,8 @@ impl<'a> Frame<'a> {
          Frame::TRCK(v) => OwnedFrame::TRCK(v.clone()),
          Frame::TSOP(v) => OwnedFrame::TSOP(v.to_string()),
          Frame::TSSE(v) => OwnedFrame::TSSE(v.to_string()),
+         Frame::TXXX(v) => OwnedFrame::TXXX(v.to_owned()),
+         Frame::USLT(v) => OwnedFrame::USLT(v.to_owned()),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
    }
@@ -97,10 +105,12 @@ impl<'a> Frame<'a> {
          Frame::COMM(v) => OwnedFrame::COMM(v.into_owned()),
          Frame::PRIV(v) => OwnedFrame::PRIV(v.into_owned()),
          Frame::TALB(v) => OwnedFrame::TALB(v.into_owned()),
+         Frame::TBPM(v) => OwnedFrame::TBPM(v),
          Frame::TCOM(v) => OwnedFrame::TCOM(v.into_owned()),
          Frame::TCON(v) => OwnedFrame::TCON(v.into_owned()),
          Frame::TDRC(v) => OwnedFrame::TDRC(v),
          Frame::TDRL(v) => OwnedFrame::TDRL(v),
+         Frame::TDTG(v) => OwnedFrame::TDTG(v),
          Frame::TENC(v) => OwnedFrame::TENC(v.into_owned()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.into_owned()),
          Frame::TLEN(v) => OwnedFrame::TLEN(v),
@@ -112,6 +122,8 @@ impl<'a> Frame<'a> {
          Frame::TRCK(v) => OwnedFrame::TRCK(v),
          Frame::TSOP(v) => OwnedFrame::TSOP(v.into_owned()),
          Frame::TSSE(v) => OwnedFrame::TSSE(v.into_owned()),
+         Frame::TXXX(v) => OwnedFrame::TXXX(v.into_owned()),
+         Frame::USLT(v) => OwnedFrame::USLT(v.into_owned()),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
    }
@@ -119,13 +131,15 @@ impl<'a> Frame<'a> {
 
 #[derive(Clone, Debug)]
 pub enum OwnedFrame {
-   COMM(OwnedComm),
+   COMM(OwnedLangDescriptionText),
    PRIV(OwnedPriv),
    TALB(String),
+   TBPM(u64),
    TCOM(String),
    TCON(String),
    TDRC(Date),
    TDRL(Date),
+   TDTG(Date),
    TENC(String),
    TIT2(String),
    TLEN(u64),
@@ -137,27 +151,29 @@ pub enum OwnedFrame {
    TRCK(Track),
    TSOP(String),
    TSSE(String),
-   Unknown(UnknownOwnedFrame),
+   TXXX(OwnedTxxx),
+   USLT(OwnedLangDescriptionText),
+   Unknown(OwnedUnknownFrame),
 }
 
 #[derive(Clone, Debug)]
-pub struct Comm<'a> {
+pub struct LangDescriptionText<'a> {
    pub iso_639_2_lang: [u8; 3],
    pub description: Cow<'a, str>,
    pub text: Cow<'a, str>,
 }
 
-impl<'a> Comm<'a> {
-   fn to_owned(&self) -> OwnedComm {
-      OwnedComm {
+impl<'a> LangDescriptionText<'a> {
+   fn to_owned(&self) -> OwnedLangDescriptionText {
+      OwnedLangDescriptionText {
          iso_639_2_lang: self.iso_639_2_lang,
          description: self.description.to_string(),
          text: self.text.to_string(),
       }
    }
 
-   fn into_owned(self) -> OwnedComm {
-      OwnedComm {
+   fn into_owned(self) -> OwnedLangDescriptionText {
+      OwnedLangDescriptionText {
          iso_639_2_lang: self.iso_639_2_lang,
          description: self.description.into_owned(),
          text: self.text.into_owned(),
@@ -166,8 +182,36 @@ impl<'a> Comm<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct OwnedComm {
+pub struct OwnedLangDescriptionText {
    pub iso_639_2_lang: [u8; 3],
+   pub description: String,
+   pub text: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Txxx<'a> {
+   pub description: Cow<'a, str>,
+   pub text: Cow<'a, str>,
+}
+
+impl<'a> Txxx<'a> {
+   fn to_owned(&self) -> OwnedTxxx {
+      OwnedTxxx {
+         description: self.description.to_string(),
+         text: self.text.to_string(),
+      }
+   }
+
+   fn into_owned(self) -> OwnedTxxx {
+      OwnedTxxx {
+         description: self.description.into_owned(),
+         text: self.text.into_owned(),
+      }
+   }
+}
+
+#[derive(Clone, Debug)]
+pub struct OwnedTxxx {
    pub description: String,
    pub text: String,
 }
@@ -288,8 +332,8 @@ impl FromStr for Date {
 
 #[derive(Clone, Debug)]
 pub struct Track {
-   pub track_number: u64,
-   pub track_max: Option<u64>,
+   pub number: u64,
+   pub max: Option<u64>,
 }
 
 impl FromStr for Track {
@@ -306,8 +350,8 @@ impl FromStr for Track {
       };
 
       Ok(Track {
-         track_number,
-         track_max,
+         number: track_number,
+         max: track_max,
       })
    }
 }
@@ -319,11 +363,11 @@ pub struct UnknownFrame<'a> {
 }
 
 impl<'a> UnknownFrame<'a> {
-   fn to_owned(&self) -> UnknownOwnedFrame {
+   fn to_owned(&self) -> OwnedUnknownFrame {
       let mut owned_bytes = vec![0; self.data.len()].into_boxed_slice();
       owned_bytes.copy_from_slice(self.data);
 
-      UnknownOwnedFrame {
+      OwnedUnknownFrame {
          name: self.name,
          data: owned_bytes,
       }
@@ -331,7 +375,7 @@ impl<'a> UnknownFrame<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct UnknownOwnedFrame {
+pub struct OwnedUnknownFrame {
    pub name: [u8; 4],
    pub data: Box<[u8]>,
 }
@@ -372,13 +416,15 @@ impl Iterator for Parser {
 
       let result: Result<Frame, FrameParseErrorReason> = try {
          match &name {
-            b"COMM" => decode_comm_frame(frame_bytes)?,
+            b"COMM" => Frame::COMM(decode_lang_description_text(frame_bytes)?),
             b"PRIV" => decode_priv_frame(frame_bytes)?,
             b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?),
+            b"TBPM" => Frame::TBPM(decode_text_frame(frame_bytes)?.parse()?),
             b"TCOM" => Frame::TCOM(decode_text_frame(frame_bytes)?),
             b"TCON" => decode_genre_frame(frame_bytes)?,
             b"TDRC" => Frame::TDRC(decode_text_frame(frame_bytes)?.parse()?),
             b"TDRL" => Frame::TDRL(decode_text_frame(frame_bytes)?.parse()?),
+            b"TDTG" => Frame::TDTG(decode_text_frame(frame_bytes)?.parse()?),
             b"TENC" => Frame::TENC(decode_text_frame(frame_bytes)?),
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
             b"TLEN" => Frame::TLEN(decode_text_frame(frame_bytes)?.parse()?),
@@ -390,6 +436,8 @@ impl Iterator for Parser {
             b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
             b"TSOP" => Frame::TSOP(decode_text_frame(frame_bytes)?),
             b"TSSE" => Frame::TSSE(decode_text_frame(frame_bytes)?),
+            b"TXXX" => decode_txxx_frame(frame_bytes)?,
+            b"USLT" => Frame::USLT(decode_lang_description_text(frame_bytes)?),
             _ => Frame::Unknown(UnknownFrame {
                name,
                data: frame_bytes,
@@ -421,6 +469,7 @@ pub enum FrameParseErrorReason {
    ParseDateError(ParseDateError),
    ParseIntError(ParseIntError),
    MissingNullTerminator,
+   FrameTooSmall,
 }
 
 impl From<ParseIntError> for FrameParseErrorReason {
@@ -559,9 +608,7 @@ fn decode_text_frame(frame: &[u8]) -> Result<Cow<str>, TextDecodeError> {
    let encoding = TextEncoding::try_from(frame[0])?;
 
    let mut text_segment = &frame[1..frame.len()];
-   println!("BEFORE: {}", text_segment.len());
    cut_trailing_nulls_if_present(encoding, &mut text_segment);
-   println!("AFTER: {}", text_segment.len());
 
    decode_text_segment(encoding, text_segment)
 }
@@ -584,7 +631,38 @@ fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
    }))
 }
 
-fn decode_comm_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
+fn decode_description_text(encoding: TextEncoding, bytes: &[u8]) -> Result<(Cow<str>, Cow<str>), FrameParseErrorReason> {
+   let description_end = if encoding.has_two_trailing_nulls() {
+      // @Performance exact_chunks?
+      match bytes[0..].chunks(2).position(|x| *x == [0, 0]) {
+         Some(v) => v * 2,
+         None => return Err(FrameParseErrorReason::MissingNullTerminator),
+      }
+   } else {
+      match bytes[0..].iter().position(|x| *x == 0) {
+         Some(v) => v,
+         None => return Err(FrameParseErrorReason::MissingNullTerminator),
+      }
+   };
+
+   let description = decode_text_segment(encoding, &bytes[..description_end])?;
+
+   let text = if description_end + 1 == bytes.len() {
+      Cow::Borrowed("")
+   } else {
+      let mut temp = &bytes[description_end + 1..];
+      cut_trailing_nulls_if_present(encoding, &mut temp);
+      decode_text_segment(encoding, temp)?
+   };
+
+   Ok((description, text))
+}
+
+fn decode_lang_description_text(frame_bytes: &[u8]) -> Result<LangDescriptionText, FrameParseErrorReason> {
+   if frame_bytes.len() < 5 {
+      return Err(FrameParseErrorReason::FrameTooSmall);
+   }
+
    let encoding = TextEncoding::try_from(frame_bytes[0])?;
 
    let iso_639_2_lang = {
@@ -593,35 +671,30 @@ fn decode_comm_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
       lang_code
    };
 
-   let description_end = if encoding.has_two_trailing_nulls() {
-      // @Performance exact_chunks?
-      match frame_bytes[5..].chunks(2).position(|x| *x == [0, 0]) {
-         Some(v) => 5 + (v * 2),
-         None => return Err(FrameParseErrorReason::MissingNullTerminator),
-      }
-   } else {
-      match frame_bytes[5..].iter().position(|x| *x == 0) {
-         Some(v) => 5 + v,
-         None => return Err(FrameParseErrorReason::MissingNullTerminator),
-      }
-   };
+   let (description, text) = decode_description_text(encoding, &frame_bytes[4..])?;
 
-   let description = decode_text_segment(encoding, &frame_bytes[4..description_end])?;
-
-   let text = if description_end + 1 == frame_bytes.len() {
-      Cow::Borrowed("")
-   } else {
-      let mut temp = &frame_bytes[description_end + 1..];
-      cut_trailing_nulls_if_present(encoding, &mut temp);
-      decode_text_segment(encoding, temp)?
-   };
-
-   Ok(Frame::COMM(Comm {
+   Ok(LangDescriptionText {
       iso_639_2_lang,
       description,
       text,
+   })
+}
+
+fn decode_txxx_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
+   if frame_bytes.len() < 2 {
+      return Err(FrameParseErrorReason::FrameTooSmall);
+   }
+
+   let encoding = TextEncoding::try_from(frame_bytes[0])?;
+
+   let (description, text) = decode_description_text(encoding, &frame_bytes[1..])?;
+
+   Ok(Frame::TXXX(Txxx {
+      description,
+      text,
    }))
-}  
+}
+
 
 fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
    let genre = decode_text_frame(frame_bytes)?;
