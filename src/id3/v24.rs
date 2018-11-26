@@ -141,6 +141,13 @@ impl FromStr for Date {
    type Err = ParseDateError;
 
    fn from_str(s: &str) -> Result<Date, ParseDateError> {
+
+      // @Performance:
+      // I'm sure there are many opportunities to optimize here:
+      // for one thing, we can stop trying to parse the date as soon
+      // as we get one None. Micro-benchmarks need to be set up
+      // and then we can re-visit.
+
       let year: u16 = {
          let result = s.get(0..4).map(|x| x.parse());
          match result {
