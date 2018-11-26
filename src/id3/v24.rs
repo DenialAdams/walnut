@@ -632,25 +632,27 @@ fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
 }
 
 fn decode_description_text(encoding: TextEncoding, bytes: &[u8]) -> Result<(Cow<str>, Cow<str>), FrameParseErrorReason> {
-   let description_end = if encoding.has_two_trailing_nulls() {
+   let (description_end, text_start) = if encoding.has_two_trailing_nulls() {
       // @Performance exact_chunks?
-      match bytes[0..].chunks(2).position(|x| *x == [0, 0]) {
+      let description_end = match bytes[0..].chunks(2).position(|x| *x == [0, 0]) {
          Some(v) => v * 2,
          None => return Err(FrameParseErrorReason::MissingNullTerminator),
-      }
+      };
+      (description_end, description_end + 2)
    } else {
-      match bytes[0..].iter().position(|x| *x == 0) {
+      let description_end = match bytes[0..].iter().position(|x| *x == 0) {
          Some(v) => v,
          None => return Err(FrameParseErrorReason::MissingNullTerminator),
-      }
+      };
+      (description_end, description_end + 1)
    };
 
    let description = decode_text_segment(encoding, &bytes[..description_end])?;
 
-   let text = if description_end + 1 == bytes.len() {
+   let text = if text_start == bytes.len() {
       Cow::Borrowed("")
    } else {
-      let mut temp = &bytes[description_end + 1..];
+      let mut temp = &bytes[text_start..];
       cut_trailing_nulls_if_present(encoding, &mut temp);
       decode_text_segment(encoding, temp)?
    };
