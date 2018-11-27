@@ -50,6 +50,7 @@ pub enum Frame<'a> {
    TBPM(u64),
    TCOM(Cow<'a, str>),
    TCON(Cow<'a, str>),
+   TCOP(Tcop<'a>),
    TDEN(Date),
    TDLY(u64),
    TDOR(Date),
@@ -83,49 +84,6 @@ pub enum Frame<'a> {
 }
 
 impl<'a> Frame<'a> {
-   /// Prefer `into_owned` if this `Frame` does not need to be used anymore
-   pub fn to_owned(&self) -> OwnedFrame {
-      match self {
-         Frame::COMM(v) => OwnedFrame::COMM(v.to_owned()),
-         Frame::PRIV(v) => OwnedFrame::PRIV(v.to_owned()),
-         Frame::TALB(v) => OwnedFrame::TALB(v.to_string()),
-         Frame::TBPM(v) => OwnedFrame::TBPM(*v),
-         Frame::TCOM(v) => OwnedFrame::TCOM(v.to_string()),
-         Frame::TCON(v) => OwnedFrame::TCON(v.to_string()),
-         Frame::TDEN(v) => OwnedFrame::TDEN(v.clone()),
-         Frame::TDLY(v) => OwnedFrame::TDLY(*v),
-         Frame::TDOR(v) => OwnedFrame::TDOR(v.clone()),
-         Frame::TDRC(v) => OwnedFrame::TDRC(v.clone()),
-         Frame::TDRL(v) => OwnedFrame::TDRL(v.clone()),
-         Frame::TDTG(v) => OwnedFrame::TDTG(v.clone()),
-         Frame::TENC(v) => OwnedFrame::TENC(v.to_string()),
-         Frame::TEXT(v) => OwnedFrame::TEXT(v.to_string()),
-         Frame::TIT1(v) => OwnedFrame::TIT1(v.to_string()),
-         Frame::TIT2(v) => OwnedFrame::TIT2(v.to_string()),
-         Frame::TIT3(v) => OwnedFrame::TIT3(v.to_string()),
-         Frame::TLEN(v) => OwnedFrame::TLEN(*v),
-         Frame::TMOO(v) => OwnedFrame::TMOO(v.to_string()),
-         Frame::TOLY(v) => OwnedFrame::TOLY(v.to_string()),
-         Frame::TOPE(v) => OwnedFrame::TOPE(v.to_string()),
-         Frame::TOWN(v) => OwnedFrame::TOWN(v.to_string()),
-         Frame::TPE1(v) => OwnedFrame::TPE1(v.to_string()),
-         Frame::TPE2(v) => OwnedFrame::TPE2(v.to_string()),
-         Frame::TPE3(v) => OwnedFrame::TPE3(v.to_string()),
-         Frame::TPE4(v) => OwnedFrame::TPE4(v.to_string()),
-         Frame::TPOS(v) => OwnedFrame::TPOS(v.clone()),
-         Frame::TPUB(v) => OwnedFrame::TPUB(v.to_string()),
-         Frame::TRCK(v) => OwnedFrame::TRCK(v.clone()),
-         Frame::TSOA(v) => OwnedFrame::TSOA(v.to_string()),
-         Frame::TSOP(v) => OwnedFrame::TSOP(v.to_string()),
-         Frame::TSOT(v) => OwnedFrame::TSOT(v.to_string()),
-         Frame::TSSE(v) => OwnedFrame::TSSE(v.to_string()),
-         Frame::TXXX(v) => OwnedFrame::TXXX(v.to_owned()),
-         Frame::USLT(v) => OwnedFrame::USLT(v.to_owned()),
-         Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
-      }
-   }
-
-   /// Should be preferred over `to_owned` if you no longer need the `Frame`
    pub fn into_owned(self) -> OwnedFrame {
       match self {
          Frame::COMM(v) => OwnedFrame::COMM(v.into_owned()),
@@ -134,6 +92,7 @@ impl<'a> Frame<'a> {
          Frame::TBPM(v) => OwnedFrame::TBPM(v),
          Frame::TCOM(v) => OwnedFrame::TCOM(v.into_owned()),
          Frame::TCON(v) => OwnedFrame::TCON(v.into_owned()),
+         Frame::TCOP(v) => OwnedFrame::TCOP(v.into_owned()),
          Frame::TDEN(v) => OwnedFrame::TDEN(v),
          Frame::TDLY(v) => OwnedFrame::TDLY(v),
          Frame::TDOR(v) => OwnedFrame::TDOR(v),
@@ -176,6 +135,7 @@ pub enum OwnedFrame {
    TBPM(u64),
    TCOM(String),
    TCON(String),
+   TCOP(OwnedTcop),
    TDEN(Date),
    TDLY(u64),
    TDOR(Date),
@@ -216,14 +176,6 @@ pub struct LangDescriptionText<'a> {
 }
 
 impl<'a> LangDescriptionText<'a> {
-   fn to_owned(&self) -> OwnedLangDescriptionText {
-      OwnedLangDescriptionText {
-         iso_639_2_lang: self.iso_639_2_lang,
-         description: self.description.to_string(),
-         text: self.text.to_string(),
-      }
-   }
-
    fn into_owned(self) -> OwnedLangDescriptionText {
       OwnedLangDescriptionText {
          iso_639_2_lang: self.iso_639_2_lang,
@@ -247,13 +199,6 @@ pub struct Txxx<'a> {
 }
 
 impl<'a> Txxx<'a> {
-   fn to_owned(&self) -> OwnedTxxx {
-      OwnedTxxx {
-         description: self.description.to_string(),
-         text: self.text.to_string(),
-      }
-   }
-
    fn into_owned(self) -> OwnedTxxx {
       OwnedTxxx {
          description: self.description.into_owned(),
@@ -275,16 +220,6 @@ pub struct Priv<'a> {
 }
 
 impl<'a> Priv<'a> {
-   fn to_owned(&self) -> OwnedPriv {
-      let mut owned_bytes = vec![0; self.data.len()].into_boxed_slice();
-      owned_bytes.copy_from_slice(self.data);
-
-      OwnedPriv {
-         owner: self.owner.clone(),
-         data: owned_bytes,
-      }
-   }
-
    fn into_owned(self) -> OwnedPriv {
       let mut owned_bytes = vec![0; self.data.len()].into_boxed_slice();
       owned_bytes.copy_from_slice(self.data);
@@ -300,6 +235,27 @@ impl<'a> Priv<'a> {
 pub struct OwnedPriv {
    pub owner: String,
    pub data: Box<[u8]>,
+}
+
+#[derive(Clone, Debug)]
+pub struct OwnedTcop {
+   pub year: u16,
+   pub message: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Tcop<'a> {
+   pub year: u16,
+   pub message: Cow<'a, str>,
+}
+
+impl<'a> Tcop<'a> {
+   fn into_owned(self) -> OwnedTcop {
+      OwnedTcop {
+         year: self.year,
+         message: self.message.into_owned(),
+      }
+   }
 }
 
 #[derive(Clone, Debug)]
@@ -474,6 +430,7 @@ impl Iterator for Parser {
             b"TBPM" => Frame::TBPM(decode_text_frame(frame_bytes)?.parse()?),
             b"TCOM" => Frame::TCOM(decode_text_frame(frame_bytes)?),
             b"TCON" => decode_genre_frame(frame_bytes)?,
+            b"TCOP" => decode_tcop_frame(frame_bytes)?,
             b"TDEN" => Frame::TDEN(decode_text_frame(frame_bytes)?.parse()?),
             b"TDOR" => Frame::TDOR(decode_text_frame(frame_bytes)?.parse()?),
             b"TDLY" => Frame::TDLY(decode_text_frame(frame_bytes)?.parse()?),
@@ -851,4 +808,34 @@ fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
       _ => genre,
    };
    Ok(Frame::TCON(genre))
+}
+
+fn decode_tcop_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
+   let mut text = decode_text_frame(frame_bytes)?;
+   if text.len() < 4 {
+      return Err(FrameParseErrorReason::FrameTooSmall);
+   }
+   println!("OG TEXT: {}", text);
+   let year = text[0..4].parse()?;
+   match text {
+      Cow::Owned(ref mut s) => {
+         s.remove(0);
+         s.remove(0);
+         s.remove(0);
+         s.remove(0);
+         if s.starts_with(' ') {
+            s.remove(0);
+         }
+      }
+      Cow::Borrowed(ref mut s) => {
+         *s = &s[4..];
+         if s.starts_with(' ') {
+            *s = &s[1..];
+         }
+      }
+   }
+   Ok(Frame::TCOP(Tcop {
+      year,
+      message: text,
+   }))
 }
