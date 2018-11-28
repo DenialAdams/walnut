@@ -80,6 +80,14 @@ pub enum Frame<'a> {
    TSSE(Cow<'a, str>),
    TXXX(Txxx<'a>),
    USLT(LangDescriptionText<'a>),
+   WCOM(String),
+   WCOP(String),
+   WOAF(String),
+   WOAR(String),
+   WOAS(String),
+   WORS(String),
+   WPAY(String),
+   WPUB(String),
    Unknown(UnknownFrame<'a>),
 }
 
@@ -122,6 +130,14 @@ impl<'a> Frame<'a> {
          Frame::TSSE(v) => OwnedFrame::TSSE(v.into_owned()),
          Frame::TXXX(v) => OwnedFrame::TXXX(v.into_owned()),
          Frame::USLT(v) => OwnedFrame::USLT(v.into_owned()),
+         Frame::WCOM(v) => OwnedFrame::WCOM(v),
+         Frame::WCOP(v) => OwnedFrame::WCOP(v),
+         Frame::WOAF(v) => OwnedFrame::WOAF(v),
+         Frame::WOAR(v) => OwnedFrame::WOAR(v),
+         Frame::WOAS(v) => OwnedFrame::WOAS(v),
+         Frame::WORS(v) => OwnedFrame::WORS(v),
+         Frame::WPAY(v) => OwnedFrame::WPAY(v),
+         Frame::WPUB(v) => OwnedFrame::WPUB(v),
          Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
       }
    }
@@ -165,6 +181,14 @@ pub enum OwnedFrame {
    TSSE(String),
    TXXX(OwnedTxxx),
    USLT(OwnedLangDescriptionText),
+   WCOM(String),
+   WCOP(String),
+   WOAF(String),
+   WOAR(String),
+   WOAS(String),
+   WORS(String),
+   WPAY(String),
+   WPUB(String),
    Unknown(OwnedUnknownFrame),
 }
 
@@ -460,6 +484,14 @@ impl Iterator for Parser {
             b"TSSE" => Frame::TSSE(decode_text_frame(frame_bytes)?),
             b"TXXX" => decode_txxx_frame(frame_bytes)?,
             b"USLT" => Frame::USLT(decode_lang_description_text(frame_bytes)?),
+            b"WCOM" => Frame::WCOM(decode_url_frame(frame_bytes)),
+            b"WCOP" => Frame::WCOP(decode_url_frame(frame_bytes)),
+            b"WOAF" => Frame::WOAF(decode_url_frame(frame_bytes)),
+            b"WOAR" => Frame::WOAR(decode_url_frame(frame_bytes)),
+            b"WOAS" => Frame::WOAS(decode_url_frame(frame_bytes)),
+            b"WORS" => Frame::WORS(decode_url_frame(frame_bytes)),
+            b"WPAY" => Frame::WPAY(decode_url_frame(frame_bytes)),
+            b"WPUB" => Frame::WPUB(decode_url_frame(frame_bytes)),
             _ => Frame::Unknown(UnknownFrame {
                name,
                data: frame_bytes,
@@ -653,7 +685,10 @@ fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
    }))
 }
 
-fn decode_description_text(encoding: TextEncoding, bytes: &[u8]) -> Result<(Cow<str>, Cow<str>), FrameParseErrorReason> {
+fn decode_description_text(
+   encoding: TextEncoding,
+   bytes: &[u8],
+) -> Result<(Cow<str>, Cow<str>), FrameParseErrorReason> {
    let (description_end, text_start) = if encoding.has_two_trailing_nulls() {
       // @Performance exact_chunks?
       let description_end = match bytes[0..].chunks(2).position(|x| *x == [0, 0]) {
@@ -713,12 +748,8 @@ fn decode_txxx_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
 
    let (description, text) = decode_description_text(encoding, &frame_bytes[1..])?;
 
-   Ok(Frame::TXXX(Txxx {
-      description,
-      text,
-   }))
+   Ok(Frame::TXXX(Txxx { description, text }))
 }
-
 
 fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
    let genre = decode_text_frame(frame_bytes)?;
@@ -834,8 +865,16 @@ fn decode_tcop_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
          }
       }
    }
-   Ok(Frame::TCOP(Tcop {
-      year,
-      message: text,
-   }))
+   Ok(Frame::TCOP(Tcop { year, message: text }))
+}
+
+// We don't do full URL parsing (for instance; with the URL crate)
+// because the id3 spec says that relative URLs are always ok
+// and that doesn't jive with general URL parsing
+fn decode_url_frame(mut frame: &[u8]) -> String {
+   if frame[frame.len() - 1] == 0 {
+      frame = &frame[..frame.len() - 1];
+   }
+
+   frame.iter().map(|c| *c as char).collect()
 }

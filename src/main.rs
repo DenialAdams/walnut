@@ -89,6 +89,14 @@ fn main() {
                      id3::v24::OwnedFrame::TSSE(x) => println!("Encoding settings: {:?}", x),
                      id3::v24::OwnedFrame::TXXX(x) => println!("User defined text: {:?}", x),
                      id3::v24::OwnedFrame::USLT(x) => println!("Lyrics: {:?}", x),
+                     id3::v24::OwnedFrame::WCOM(x) => println!("Commercial Information URL: {}", x),
+                     id3::v24::OwnedFrame::WCOP(x) => println!("Copyright/Legal Info URL: {}", x),
+                     id3::v24::OwnedFrame::WOAF(x) => println!("Audio File URL: {}", x),
+                     id3::v24::OwnedFrame::WOAR(x) => println!("Artist/Performer URL: {}", x),
+                     id3::v24::OwnedFrame::WOAS(x) => println!("Audio Source URL: {}", x),
+                     id3::v24::OwnedFrame::WORS(x) => println!("Internet Radio Station URL: {}", x),
+                     id3::v24::OwnedFrame::WPAY(x) => println!("Payment URL: {}", x),
+                     id3::v24::OwnedFrame::WPUB(x) => println!("Publisher URL: {}", x),
                      id3::v24::OwnedFrame::Unknown(u) => {
                         println!("Unknown frame: {}", String::from_utf8_lossy(&u.name))
                      }
