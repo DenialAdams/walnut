@@ -50,7 +50,7 @@ pub enum Frame<'a> {
    TBPM(u64),
    TCOM(Cow<'a, str>),
    TCON(Cow<'a, str>),
-   TCOP(Tcop<'a>),
+   TCOP(Copyright<'a>),
    TDEN(Date),
    TDLY(u64),
    TDOR(Date),
@@ -72,6 +72,7 @@ pub enum Frame<'a> {
    TPE3(Cow<'a, str>),
    TPE4(Cow<'a, str>),
    TPOS(Track),
+   TPRO(Copyright<'a>),
    TPUB(Cow<'a, str>),
    TRCK(Track),
    TSOA(Cow<'a, str>),
@@ -123,6 +124,7 @@ impl<'a> Frame<'a> {
          Frame::TPE3(v) => OwnedFrame::TPE3(v.into_owned()),
          Frame::TPE4(v) => OwnedFrame::TPE4(v.into_owned()),
          Frame::TPOS(v) => OwnedFrame::TPOS(v),
+         Frame::TPRO(v) => OwnedFrame::TPRO(v.into_owned()),
          Frame::TPUB(v) => OwnedFrame::TPUB(v.into_owned()),
          Frame::TRCK(v) => OwnedFrame::TRCK(v),
          Frame::TSOA(v) => OwnedFrame::TSOA(v.into_owned()),
@@ -153,7 +155,7 @@ pub enum OwnedFrame {
    TBPM(u64),
    TCOM(String),
    TCON(String),
-   TCOP(OwnedTcop),
+   TCOP(OwnedCopyright),
    TDEN(Date),
    TDLY(u64),
    TDOR(Date),
@@ -174,8 +176,9 @@ pub enum OwnedFrame {
    TPE2(String),
    TPE3(String),
    TPE4(String),
-   TPUB(String),
    TPOS(Track),
+   TPRO(OwnedCopyright),
+   TPUB(String),
    TRCK(Track),
    TSOA(String),
    TSOP(String),
@@ -265,20 +268,20 @@ pub struct OwnedPriv {
 }
 
 #[derive(Clone, Debug)]
-pub struct OwnedTcop {
+pub struct OwnedCopyright {
    pub year: u16,
    pub message: String,
 }
 
 #[derive(Clone, Debug)]
-pub struct Tcop<'a> {
+pub struct Copyright<'a> {
    pub year: u16,
    pub message: Cow<'a, str>,
 }
 
-impl<'a> Tcop<'a> {
-   fn into_owned(self) -> OwnedTcop {
-      OwnedTcop {
+impl<'a> Copyright<'a> {
+   fn into_owned(self) -> OwnedCopyright {
+      OwnedCopyright {
          year: self.year,
          message: self.message.into_owned(),
       }
@@ -457,7 +460,7 @@ impl Iterator for Parser {
             b"TBPM" => Frame::TBPM(decode_text_frame(frame_bytes)?.parse()?),
             b"TCOM" => Frame::TCOM(decode_text_frame(frame_bytes)?),
             b"TCON" => decode_genre_frame(frame_bytes)?,
-            b"TCOP" => decode_tcop_frame(frame_bytes)?,
+            b"TCOP" => Frame::TCOP(decode_copyright_frame(frame_bytes)?),
             b"TDEN" => Frame::TDEN(decode_text_frame(frame_bytes)?.parse()?),
             b"TDOR" => Frame::TDOR(decode_text_frame(frame_bytes)?.parse()?),
             b"TDLY" => Frame::TDLY(decode_text_frame(frame_bytes)?.parse()?),
@@ -479,6 +482,7 @@ impl Iterator for Parser {
             b"TPE3" => Frame::TPE3(decode_text_frame(frame_bytes)?),
             b"TPE4" => Frame::TPE4(decode_text_frame(frame_bytes)?),
             b"TPOS" => Frame::TPOS(decode_text_frame(frame_bytes)?.parse()?),
+            b"TPRO" => Frame::TPRO(decode_copyright_frame(frame_bytes)?),
             b"TPUB" => Frame::TPUB(decode_text_frame(frame_bytes)?),
             b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
             b"TSOA" => Frame::TSOA(decode_text_frame(frame_bytes)?),
@@ -845,12 +849,11 @@ fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
    Ok(Frame::TCON(genre))
 }
 
-fn decode_tcop_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
+fn decode_copyright_frame(frame_bytes: &[u8]) -> Result<Copyright, FrameParseErrorReason> {
    let mut text = decode_text_frame(frame_bytes)?;
    if text.len() < 4 {
       return Err(FrameParseErrorReason::FrameTooSmall);
    }
-   println!("OG TEXT: {}", text);
    let year = text[0..4].parse()?;
    match text {
       Cow::Owned(ref mut s) => {
@@ -869,7 +872,7 @@ fn decode_tcop_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
          }
       }
    }
-   Ok(Frame::TCOP(Tcop { year, message: text }))
+   Ok(Copyright { year, message: text })
 }
 
 // We don't do full URL parsing (for instance; with the URL crate)
