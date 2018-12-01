@@ -1,4 +1,4 @@
-#![feature(try_blocks, try_from)]
+#![feature(try_blocks, try_from, duration_as_u128)]
 
 extern crate byteorder;
 #[macro_use]
@@ -10,35 +10,40 @@ extern crate pretty_env_logger;
 
 mod id3;
 
+use std::time::Instant;
 use std::fs::File;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
+
+fn is_mp3_file(entry: &DirEntry) -> bool {
+   if let Some(ref extension) = entry.file_name().to_string_lossy().split('.').last() {
+      *extension == "mp3"
+   } else {
+      false
+   }
+}
 
 fn main() {
    pretty_env_logger::init();
 
-   for entry in WalkDir::new("C:\\music") {
-      let entry = match entry {
-         Err(err) => {
-            warn!("Failed to open file/directory: {}", err);
-            continue;
+   // TODO: use map_or_else when it is stable
+   // WalkDir::new("C:\\music").into_iter().map_or_else(|e| warn!("Failed to open file/directory: {}", e), |v| v).filter(|v| v.file_type().is_file()).filter(is_mp3_file);
+   let mp3_files: Vec<_> = WalkDir::new("C:\\music")
+      .into_iter()
+      .flat_map(|v| match v {
+         Ok(v) => Some(v),
+         Err(e) => {
+            warn!("Failed to open file/directory: {}", e);
+            None
          }
-         Ok(entry) => {
-            if !entry.file_type().is_file() {
-               continue;
-            }
+      })
+      .filter(|v| v.file_type().is_file())
+      .filter(is_mp3_file)
+      .collect();
 
-            if let Some(ref extension) = entry.file_name().to_string_lossy().split('.').last() {
-               if *extension == "mp3" {
-                  entry
-               } else {
-                  continue;
-               }
-            } else {
-               continue;
-            }
-         }
-      };
-
+   let start = Instant::now();
+   let mut ok_counter: u64 = 0;
+   let mut ignored_counter: u64 = 0;
+   for entry in mp3_files.into_iter() {
       println!("{}", entry.path().display());
 
       let mut f = File::open(entry.path()).unwrap();
@@ -47,7 +52,7 @@ fn main() {
             println!("ID3v24");
             for frame in parser {
                match frame {
-                  Err(e) => println!(
+                  Err(e) => warn!(
                      "Failed to parse frame {}: {:?}",
                      String::from_utf8_lossy(&e.name),
                      e.reason
@@ -110,18 +115,26 @@ fn main() {
                   },
                }
             }
+            ok_counter += 1;
          }
-         Err(e) => match e {
-            id3::TagParseError::NoTag => {
-               println!("No ID3");
+         Err(e) => {
+            match e {
+               id3::TagParseError::NoTag => {
+                  println!("No ID3");
+               }
+               id3::TagParseError::UnsupportedVersion(ver) => {
+                  println!("ID3v2{}", ver);
+               }
+               id3::TagParseError::Io(io_err) => {
+                  warn!("Failed to parse file: {}", io_err);
+               }
             }
-            id3::TagParseError::UnsupportedVersion(ver) => {
-               println!("ID3v2{}", ver);
-            }
-            id3::TagParseError::Io(io_err) => {
-               warn!("Failed to parse file: {}", io_err);
-            }
+            ignored_counter += 1;
          },
       }
    }
+
+   let elapsed = start.elapsed();
+   info!("Parsed {} mp3 files in {}ms ({:.2}ms avg)", ok_counter, elapsed.as_millis(), elapsed.as_millis() as f64 / ok_counter as f64);
+   info!("Failed to parse {} mp3 files", ignored_counter);
 }
