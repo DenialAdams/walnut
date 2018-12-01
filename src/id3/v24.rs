@@ -437,6 +437,7 @@ impl Iterator for Parser {
    type Item = Result<OwnedFrame, FrameParseError>;
 
    fn next(&mut self) -> Option<Result<OwnedFrame, FrameParseError>> {
+      // Each frame must be at least 10 bytes
       if self.content.len() - self.cursor < 10 {
          return None;
       }
@@ -444,7 +445,7 @@ impl Iterator for Parser {
       let mut name: [u8; 4] = [0; 4];
       name.copy_from_slice(&self.content[self.cursor..self.cursor + 4]);
       if &name == b"\0\0\0\0" {
-         // Padding or end of buffer
+         // Padding
          return None;
       }
 

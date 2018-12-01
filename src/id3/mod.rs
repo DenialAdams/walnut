@@ -48,10 +48,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
    let header = if &header[0..3] == b"ID3" {
       parse_header(&header[3..])
    } else {
-      // Seek to bottom of file minus 10 bytes
-      // check for "3DI"
-      // if yes tag at bottom
-      // unimplemented!()
+      // search for 3DI from bottom of file
       Err(TagParseError::NoTag)
    }?;
 
@@ -59,7 +56,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
       TagFlags::V24(flags) => {
          if header.revision > 0 {
             warn!(
-               "Unknown revision {}, proceeding anyway but may miss data",
+               "Unknown revision ({}); proceeding anyway but may miss data",
                header.revision
             );
          }
@@ -73,7 +70,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
          }
 
          if flags.contains(v24::TagFlags::EXPERIMENTAL_INDICATOR) {
-            unimplemented!();
+            warn!("Tag is experimental; proceeding anyway but may miss data");
          }
 
          if flags.contains(v24::TagFlags::FOOTER_PRESENT) {
