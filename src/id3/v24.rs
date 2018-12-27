@@ -46,45 +46,45 @@ impl Parser {
 pub enum Frame<'a> {
    COMM(LangDescriptionText<'a>),
    PRIV(Priv<'a>),
-   TALB(Cow<'a, str>),
-   TBPM(u64),
-   TCOM(Cow<'a, str>),
+   TALB(Vec<Cow<'a, str>>),
+   TBPM(Vec<u64>),
+   TCOM(Vec<Cow<'a, str>>),
    TCON(Vec<Cow<'a, str>>),
-   TCOP(Copyright<'a>),
-   TDEN(Date),
-   TDLY(u64),
-   TDOR(Date),
-   TDRC(Date),
-   TDRL(Date),
-   TDTG(Date),
-   TENC(Cow<'a, str>),
-   TEXT(Cow<'a, str>),
-   TIT1(Cow<'a, str>),
-   TIT2(Cow<'a, str>),
-   TIT3(Cow<'a, str>),
-   TLEN(u64),
-   TMOO(Cow<'a, str>),
-   TOAL(Cow<'a, str>),
-   TOFN(Cow<'a, str>),
-   TOLY(Cow<'a, str>),
-   TOPE(Cow<'a, str>),
-   TOWN(Cow<'a, str>),
-   TPE1(Cow<'a, str>),
-   TPE2(Cow<'a, str>),
-   TPE3(Cow<'a, str>),
-   TPE4(Cow<'a, str>),
-   TPOS(Track),
-   TPRO(Copyright<'a>),
-   TPUB(Cow<'a, str>),
-   TRCK(Track),
-   TRSN(Cow<'a, str>),
-   TRSO(Cow<'a, str>),
-   TSOA(Cow<'a, str>),
-   TSOP(Cow<'a, str>),
-   TSOT(Cow<'a, str>),
-   TSRC(Cow<'a, str>),
-   TSSE(Cow<'a, str>),
-   TSST(Cow<'a, str>),
+   TCOP(Vec<Copyright<'a>>),
+   TDEN(Vec<Date>),
+   TDLY(Vec<u64>),
+   TDOR(Vec<Date>),
+   TDRC(Vec<Date>),
+   TDRL(Vec<Date>),
+   TDTG(Vec<Date>),
+   TENC(Vec<Cow<'a, str>>),
+   TEXT(Vec<Cow<'a, str>>),
+   TIT1(Vec<Cow<'a, str>>),
+   TIT2(Vec<Cow<'a, str>>),
+   TIT3(Vec<Cow<'a, str>>),
+   TLEN(Vec<u64>),
+   TMOO(Vec<Cow<'a, str>>),
+   TOAL(Vec<Cow<'a, str>>),
+   TOFN(Vec<Cow<'a, str>>),
+   TOLY(Vec<Cow<'a, str>>),
+   TOPE(Vec<Cow<'a, str>>),
+   TOWN(Vec<Cow<'a, str>>),
+   TPE1(Vec<Cow<'a, str>>),
+   TPE2(Vec<Cow<'a, str>>),
+   TPE3(Vec<Cow<'a, str>>),
+   TPE4(Vec<Cow<'a, str>>),
+   TPOS(Vec<Track>),
+   TPRO(Vec<Copyright<'a>>),
+   TPUB(Vec<Cow<'a, str>>),
+   TRCK(Vec<Track>),
+   TRSN(Vec<Cow<'a, str>>),
+   TRSO(Vec<Cow<'a, str>>),
+   TSOA(Vec<Cow<'a, str>>),
+   TSOP(Vec<Cow<'a, str>>),
+   TSOT(Vec<Cow<'a, str>>),
+   TSRC(Vec<Cow<'a, str>>),
+   TSSE(Vec<Cow<'a, str>>),
+   TSST(Vec<Cow<'a, str>>),
    TXXX(Txxx<'a>),
    USLT(LangDescriptionText<'a>),
    WCOM(String),
@@ -103,45 +103,45 @@ impl<'a> Frame<'a> {
       match self {
          Frame::COMM(v) => OwnedFrame::COMM(v.into_owned()),
          Frame::PRIV(v) => OwnedFrame::PRIV(v.into_owned()),
-         Frame::TALB(v) => OwnedFrame::TALB(v.into_owned()),
+         Frame::TALB(v) => OwnedFrame::TALB(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TBPM(v) => OwnedFrame::TBPM(v),
-         Frame::TCOM(v) => OwnedFrame::TCOM(v.into_owned()),
-         Frame::TCON(v) => OwnedFrame::TCON(v.into_iter().map(|g| g.into_owned()).collect()),
-         Frame::TCOP(v) => OwnedFrame::TCOP(v.into_owned()),
+         Frame::TCOM(v) => OwnedFrame::TCOM(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TCON(v) => OwnedFrame::TCON(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TCOP(v) => OwnedFrame::TCOP(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TDEN(v) => OwnedFrame::TDEN(v),
          Frame::TDLY(v) => OwnedFrame::TDLY(v),
          Frame::TDOR(v) => OwnedFrame::TDOR(v),
          Frame::TDRC(v) => OwnedFrame::TDRC(v),
          Frame::TDRL(v) => OwnedFrame::TDRL(v),
          Frame::TDTG(v) => OwnedFrame::TDTG(v),
-         Frame::TENC(v) => OwnedFrame::TENC(v.into_owned()),
-         Frame::TEXT(v) => OwnedFrame::TEXT(v.into_owned()),
-         Frame::TIT1(v) => OwnedFrame::TIT1(v.into_owned()),
-         Frame::TIT2(v) => OwnedFrame::TIT2(v.into_owned()),
-         Frame::TIT3(v) => OwnedFrame::TIT3(v.into_owned()),
+         Frame::TENC(v) => OwnedFrame::TENC(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TEXT(v) => OwnedFrame::TEXT(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TIT1(v) => OwnedFrame::TIT1(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TIT2(v) => OwnedFrame::TIT2(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TIT3(v) => OwnedFrame::TIT3(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TLEN(v) => OwnedFrame::TLEN(v),
-         Frame::TMOO(v) => OwnedFrame::TMOO(v.into_owned()),
-         Frame::TOLY(v) => OwnedFrame::TOLY(v.into_owned()),
-         Frame::TOAL(v) => OwnedFrame::TOAL(v.into_owned()),
-         Frame::TOFN(v) => OwnedFrame::TOFN(v.into_owned()),
-         Frame::TOPE(v) => OwnedFrame::TOPE(v.into_owned()),
-         Frame::TOWN(v) => OwnedFrame::TOWN(v.into_owned()),
-         Frame::TPE1(v) => OwnedFrame::TPE1(v.into_owned()),
-         Frame::TPE2(v) => OwnedFrame::TPE2(v.into_owned()),
-         Frame::TPE3(v) => OwnedFrame::TPE3(v.into_owned()),
-         Frame::TPE4(v) => OwnedFrame::TPE4(v.into_owned()),
+         Frame::TMOO(v) => OwnedFrame::TMOO(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TOLY(v) => OwnedFrame::TOLY(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TOAL(v) => OwnedFrame::TOAL(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TOFN(v) => OwnedFrame::TOFN(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TOPE(v) => OwnedFrame::TOPE(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TOWN(v) => OwnedFrame::TOWN(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TPE1(v) => OwnedFrame::TPE1(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TPE2(v) => OwnedFrame::TPE2(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TPE3(v) => OwnedFrame::TPE3(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TPE4(v) => OwnedFrame::TPE4(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TPOS(v) => OwnedFrame::TPOS(v),
-         Frame::TPRO(v) => OwnedFrame::TPRO(v.into_owned()),
-         Frame::TPUB(v) => OwnedFrame::TPUB(v.into_owned()),
+         Frame::TPRO(v) => OwnedFrame::TPRO(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TPUB(v) => OwnedFrame::TPUB(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TRCK(v) => OwnedFrame::TRCK(v),
-         Frame::TRSN(v) => OwnedFrame::TRSN(v.into_owned()),
-         Frame::TRSO(v) => OwnedFrame::TRSO(v.into_owned()),
-         Frame::TSOA(v) => OwnedFrame::TSOA(v.into_owned()),
-         Frame::TSOP(v) => OwnedFrame::TSOP(v.into_owned()),
-         Frame::TSOT(v) => OwnedFrame::TSOT(v.into_owned()),
-         Frame::TSRC(v) => OwnedFrame::TSRC(v.into_owned()),
-         Frame::TSSE(v) => OwnedFrame::TSSE(v.into_owned()),
-         Frame::TSST(v) => OwnedFrame::TSST(v.into_owned()),
+         Frame::TRSN(v) => OwnedFrame::TRSN(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TRSO(v) => OwnedFrame::TRSO(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TSOA(v) => OwnedFrame::TSOA(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TSOP(v) => OwnedFrame::TSOP(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TSOT(v) => OwnedFrame::TSOT(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TSRC(v) => OwnedFrame::TSRC(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TSSE(v) => OwnedFrame::TSSE(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TSST(v) => OwnedFrame::TSST(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TXXX(v) => OwnedFrame::TXXX(v.into_owned()),
          Frame::USLT(v) => OwnedFrame::USLT(v.into_owned()),
          Frame::WCOM(v) => OwnedFrame::WCOM(v),
@@ -162,22 +162,22 @@ pub enum OwnedFrame {
    COMM(OwnedLangDescriptionText),
    PRIV(OwnedPriv),
    TALB(String),
-   TBPM(u64),
+   TBPM(Vec<u64>),
    TCOM(String),
-   TCON(Vec<String>),
-   TCOP(OwnedCopyright),
-   TDEN(Date),
-   TDLY(u64),
-   TDOR(Date),
-   TDRC(Date),
-   TDRL(Date),
-   TDTG(Date),
+   TCON(String),
+   TCOP(Vec<OwnedCopyright>),
+   TDEN(Vec<Date>),
+   TDLY(Vec<u64>),
+   TDOR(Vec<Date>),
+   TDRC(Vec<Date>),
+   TDRL(Vec<Date>),
+   TDTG(Vec<Date>),
    TENC(String),
    TEXT(String),
    TIT1(String),
    TIT2(String),
    TIT3(String),
-   TLEN(u64),
+   TLEN(Vec<u64>),
    TMOO(String),
    TOAL(String),
    TOFN(String),
@@ -188,10 +188,10 @@ pub enum OwnedFrame {
    TPE2(String),
    TPE3(String),
    TPE4(String),
-   TPOS(Track),
-   TPRO(OwnedCopyright),
+   TPOS(Vec<Track>),
+   TPRO(Vec<OwnedCopyright>),
    TPUB(String),
-   TRCK(Track),
+   TRCK(Vec<Track>),
    TRSN(String),
    TRSO(String),
    TSOA(String),
@@ -217,7 +217,7 @@ pub enum OwnedFrame {
 pub struct LangDescriptionText<'a> {
    pub iso_639_2_lang: [u8; 3],
    pub description: Cow<'a, str>,
-   pub text: Cow<'a, str>,
+   pub text: Vec<Cow<'a, str>>,
 }
 
 impl<'a> LangDescriptionText<'a> {
@@ -225,7 +225,7 @@ impl<'a> LangDescriptionText<'a> {
       OwnedLangDescriptionText {
          iso_639_2_lang: self.iso_639_2_lang,
          description: self.description.into_owned(),
-         text: self.text.into_owned(),
+         text: self.text.into_iter().map(|x| x.into_owned()).collect(),
       }
    }
 }
@@ -234,20 +234,20 @@ impl<'a> LangDescriptionText<'a> {
 pub struct OwnedLangDescriptionText {
    pub iso_639_2_lang: [u8; 3],
    pub description: String,
-   pub text: String,
+   pub text: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Txxx<'a> {
    pub description: Cow<'a, str>,
-   pub text: Cow<'a, str>,
+   pub text: Vec<Cow<'a, str>>,
 }
 
 impl<'a> Txxx<'a> {
    fn into_owned(self) -> OwnedTxxx {
       OwnedTxxx {
          description: self.description.into_owned(),
-         text: self.text.into_owned(),
+         text: self.text.into_iter().map(|x| x.into_owned()).collect(),
       }
    }
 }
@@ -255,7 +255,7 @@ impl<'a> Txxx<'a> {
 #[derive(Clone, Debug)]
 pub struct OwnedTxxx {
    pub description: String,
-   pub text: String,
+   pub text: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -433,6 +433,14 @@ pub struct OwnedUnknownFrame {
    pub data: Box<[u8]>,
 }
 
+fn map_parse<T: FromStr>(str_vec: Vec<Cow<str>>) -> Result<Vec<T>, T::Err> {
+   let mut new_vec = Vec::new();
+   for item in str_vec {
+      new_vec.push(item.parse()?);
+   }
+   Ok(new_vec)
+}
+
 impl Iterator for Parser {
    type Item = Result<OwnedFrame, FrameParseError>;
 
@@ -473,22 +481,28 @@ impl Iterator for Parser {
             b"COMM" => Frame::COMM(decode_lang_description_text(frame_bytes)?),
             b"PRIV" => decode_priv_frame(frame_bytes)?,
             b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?),
-            b"TBPM" => Frame::TBPM(decode_text_frame(frame_bytes)?.parse()?),
+            b"TBPM" => Frame::TBPM(map_parse(decode_text_frame(frame_bytes)?)?),
             b"TCOM" => Frame::TCOM(decode_text_frame(frame_bytes)?),
             b"TCON" => decode_genre_frame(frame_bytes)?,
-            b"TCOP" => Frame::TCOP(decode_copyright_frame(frame_bytes)?),
-            b"TDEN" => Frame::TDEN(decode_text_frame(frame_bytes)?.parse()?),
-            b"TDOR" => Frame::TDOR(decode_text_frame(frame_bytes)?.parse()?),
-            b"TDLY" => Frame::TDLY(decode_text_frame(frame_bytes)?.parse()?),
-            b"TDRC" => Frame::TDRC(decode_text_frame(frame_bytes)?.parse()?),
-            b"TDRL" => Frame::TDRL(decode_text_frame(frame_bytes)?.parse()?),
-            b"TDTG" => Frame::TDTG(decode_text_frame(frame_bytes)?.parse()?),
+            b"TCOP" => Frame::TCOP({
+               let mut new_vec = Vec::new();
+               for segment in decode_text_frame(frame_bytes)? {
+                  new_vec.push(decode_copyright_frame(segment)?);
+               }
+               new_vec
+            }),
+            b"TDEN" => Frame::TDEN(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDOR" => Frame::TDOR(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDLY" => Frame::TDLY(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDRC" => Frame::TDRC(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDRL" => Frame::TDRL(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDTG" => Frame::TDTG(map_parse(decode_text_frame(frame_bytes)?)?),
             b"TENC" => Frame::TENC(decode_text_frame(frame_bytes)?),
             b"TEXT" => Frame::TEXT(decode_text_frame(frame_bytes)?),
             b"TIT1" => Frame::TIT1(decode_text_frame(frame_bytes)?),
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
             b"TIT3" => Frame::TIT3(decode_text_frame(frame_bytes)?),
-            b"TLEN" => Frame::TLEN(decode_text_frame(frame_bytes)?.parse()?),
+            b"TLEN" => Frame::TLEN(map_parse(decode_text_frame(frame_bytes)?)?),
             b"TMOO" => Frame::TMOO(decode_text_frame(frame_bytes)?),
             b"TOAL" => Frame::TOAL(decode_text_frame(frame_bytes)?),
             b"TOFN" => Frame::TOFN(decode_text_frame(frame_bytes)?),
@@ -499,10 +513,16 @@ impl Iterator for Parser {
             b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?),
             b"TPE3" => Frame::TPE3(decode_text_frame(frame_bytes)?),
             b"TPE4" => Frame::TPE4(decode_text_frame(frame_bytes)?),
-            b"TPOS" => Frame::TPOS(decode_text_frame(frame_bytes)?.parse()?),
-            b"TPRO" => Frame::TPRO(decode_copyright_frame(frame_bytes)?),
+            b"TPOS" => Frame::TPOS(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TPRO" => Frame::TPRO({
+               let mut new_vec = Vec::new();
+               for segment in decode_text_frame(frame_bytes)? {
+                  new_vec.push(decode_copyright_frame(segment)?);
+               }
+               new_vec
+            }),
             b"TPUB" => Frame::TPUB(decode_text_frame(frame_bytes)?),
-            b"TRCK" => Frame::TRCK(decode_text_frame(frame_bytes)?.parse()?),
+            b"TRCK" => Frame::TRCK(map_parse(decode_text_frame(frame_bytes)?)?),
             b"TRSN" => Frame::TRSN(decode_text_frame(frame_bytes)?),
             b"TRSO" => Frame::TRSO(decode_text_frame(frame_bytes)?),
             b"TSOA" => Frame::TSOA(decode_text_frame(frame_bytes)?),
@@ -658,6 +678,23 @@ impl TextEncoding {
    }
 }
 
+fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result<Vec<Cow<str>>, TextDecodeError> {
+   let separator = encoding.get_trailing_null_slice();
+   let mut text_segments = Vec::new();
+   while let Some(pos) = text_slice.chunks(separator.len()).position(|x| x == separator).map(|x| x * separator.len()) {
+      text_segments.push(decode_text_segment(encoding, &text_slice[..pos])?);
+      text_slice = &text_slice[pos + separator.len()..];
+   }
+
+   if !text_slice.is_empty() {
+      // There is more text, but no null terminator
+      // We assume that it ends with the frame
+      text_segments.push(decode_text_segment(encoding, text_slice)?);
+   }
+
+   Ok(text_segments)
+}
+
 fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Cow<str>, TextDecodeError> {
    match encoding {
       TextEncoding::ISO8859 => Ok(text_slice.iter().map(|c| *c as char).collect()),
@@ -681,34 +718,10 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Cow<
    }
 }
 
-fn cut_trailing_nulls_if_present(encoding: TextEncoding, slice: &mut &[u8]) {
-   if encoding.has_two_trailing_nulls() && slice.ends_with(b"\0\0") {
-      *slice = &slice[..slice.len() - 2]
-   } else if !encoding.has_two_trailing_nulls() && slice[slice.len() - 1] == 0 {
-      *slice = &slice[..slice.len() - 1]
-   }
-}
-
 /// Panics if frame is 0 length.
 fn decode_text_frame(frame: &[u8]) -> Result<Vec<Cow<str>>, TextDecodeError> {
    let encoding = TextEncoding::try_from(frame[0])?;
-
-   let mut text_segments = Vec::new();
-
-   let mut text_blob = &frame[1..frame.len()];
-   let seperator = encoding.get_trailing_null_slice();
-   while let Some(pos) = text_blob.chunks(seperator.len()).position(|x| x == seperator).map(|x| x * seperator.len()) {
-      text_segments.push(decode_text_segment(encoding, &text_blob[..pos])?);
-      text_blob = &text_blob[pos + seperator.len()..];
-   }
-
-   if !text_blob.is_empty() {
-      // There is more text, but no null terminator
-      // We assume that it ends with the frame
-      text_segments.push(decode_text_segment(encoding, text_blob)?);
-   }
-
-   Ok(text_segments)
+   decode_text_segments(encoding, &frame[1..frame.len()])
 }
 
 fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
@@ -732,31 +745,15 @@ fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
 fn decode_description_text(
    encoding: TextEncoding,
    bytes: &[u8],
-) -> Result<(Cow<str>, Cow<str>), FrameParseErrorReason> {
-   let (description_end, text_start) = if encoding.has_two_trailing_nulls() {
-      // @Performance exact_chunks?
-      let description_end = match bytes[0..].chunks(2).position(|x| *x == [0, 0]) {
-         Some(v) => v * 2,
-         None => return Err(FrameParseErrorReason::MissingNullTerminator),
-      };
-      (description_end, description_end + 2)
-   } else {
-      let description_end = match bytes[0..].iter().position(|x| *x == 0) {
-         Some(v) => v,
-         None => return Err(FrameParseErrorReason::MissingNullTerminator),
-      };
-      (description_end, description_end + 1)
+) -> Result<(Cow<str>, Vec<Cow<str>>), FrameParseErrorReason> {
+   let separator = encoding.get_trailing_null_slice();
+   let description_end = match bytes.chunks(separator.len()).position(|x| x == separator).map(|x| x * separator.len()) {
+      Some(v) => v,
+      None => return Err(FrameParseErrorReason::MissingNullTerminator),
    };
-
+   
    let description = decode_text_segment(encoding, &bytes[..description_end])?;
-
-   let text = if text_start == bytes.len() {
-      Cow::Borrowed("")
-   } else {
-      let mut temp = &bytes[text_start..];
-      cut_trailing_nulls_if_present(encoding, &mut temp);
-      decode_text_segment(encoding, temp)?
-   };
+   let text = decode_text_segments(encoding, &bytes[description_end + separator.len()..])?;
 
    Ok((description, text))
 }
@@ -887,8 +884,7 @@ fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
    Ok(Frame::TCON(genres))
 }
 
-fn decode_copyright_frame(frame_bytes: &[u8]) -> Result<Copyright, FrameParseErrorReason> {
-   let mut text = decode_text_frame(frame_bytes)?;
+fn decode_copyright_frame(mut text: Cow<str>) -> Result<Copyright, FrameParseErrorReason> {
    if text.len() < 4 {
       // TODO: this seems misleading, it is not necessarily
       // the entire frame that is too small, just this segment
