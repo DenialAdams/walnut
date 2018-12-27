@@ -10,8 +10,8 @@ extern crate pretty_env_logger;
 
 mod id3;
 
-use std::time::Instant;
 use std::fs::File;
+use std::time::Instant;
 use walkdir::{DirEntry, WalkDir};
 
 fn is_mp3_file(entry: &DirEntry) -> bool {
@@ -61,13 +61,13 @@ fn main() {
                      id3::v24::OwnedFrame::COMM(x) => println!("Comment: {:?}", x),
                      id3::v24::OwnedFrame::PRIV(x) => println!("Private: {:?}", x),
                      id3::v24::OwnedFrame::TALB(x) => println!("Album: {}", x),
-                     id3::v24::OwnedFrame::TBPM(x) => println!("BPM: {}", x[0]),
+                     id3::v24::OwnedFrame::TBPM(x) => println!("BPM: {}", x),
                      id3::v24::OwnedFrame::TCOM(x) => println!("Composer: {}", x),
-                     id3::v24::OwnedFrame::TCON(x) => println!("Genre: {}", x),
+                     id3::v24::OwnedFrame::TCON(x) => println!("Genre: {:?}", x),
                      id3::v24::OwnedFrame::TCOP(x) => println!("Copyright: {:?}", x),
                      id3::v24::OwnedFrame::TDEN(x) => println!("Encoding Date: {:?}", x),
                      id3::v24::OwnedFrame::TDOR(x) => println!("Original Release Date: {:?}", x),
-                     id3::v24::OwnedFrame::TDLY(x) => println!("Delay: {}ms", x[0]),
+                     id3::v24::OwnedFrame::TDLY(x) => println!("Delay: {}ms", x),
                      id3::v24::OwnedFrame::TDRC(x) => println!("Recording Date: {:?}", x),
                      id3::v24::OwnedFrame::TDRL(x) => println!("Release Date: {:?}", x),
                      id3::v24::OwnedFrame::TDTG(x) => println!("Tagging Date: {:?}", x),
@@ -76,7 +76,7 @@ fn main() {
                      id3::v24::OwnedFrame::TIT1(x) => println!("Content group description: {}", x),
                      id3::v24::OwnedFrame::TIT2(x) => println!("Title: {}", x),
                      id3::v24::OwnedFrame::TIT3(x) => println!("Substitle/description refinement: {}", x),
-                     id3::v24::OwnedFrame::TLEN(x) => println!("Length: {}ms", x[0]),
+                     id3::v24::OwnedFrame::TLEN(x) => println!("Length: {}ms", x),
                      id3::v24::OwnedFrame::TMOO(x) => println!("Mood: {}", x),
                      id3::v24::OwnedFrame::TOAL(x) => println!("Original Album Title: {}", x),
                      id3::v24::OwnedFrame::TOFN(x) => println!("Original filename: {}", x),
@@ -130,11 +130,16 @@ fn main() {
                }
             }
             ignored_counter += 1;
-         },
+         }
       }
    }
 
    let elapsed = start.elapsed();
-   info!("Parsed {} mp3 files in {}ms ({:.2}ms avg)", ok_counter, elapsed.as_millis(), elapsed.as_millis() as f64 / ok_counter as f64);
+   info!(
+      "Parsed {} mp3 files in {}ms ({:.2}ms avg)",
+      ok_counter,
+      elapsed.as_millis(),
+      elapsed.as_millis() as f64 / ok_counter as f64
+   );
    info!("Failed to parse {} mp3 files", ignored_counter);
 }
