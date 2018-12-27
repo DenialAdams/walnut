@@ -1,6 +1,7 @@
 use super::synchsafe_u32_to_u32;
 use byteorder::{BigEndian, ByteOrder};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::num::ParseIntError;
 use std::str::{FromStr, Utf8Error};
@@ -59,10 +60,12 @@ pub enum Frame<'a> {
    TDTG(Vec<Date>),
    TENC(Vec<Cow<'a, str>>),
    TEXT(Vec<Cow<'a, str>>),
+   TIPL(HashMap<Cow<'a, str>, Cow<'a, str>>),
    TIT1(Vec<Cow<'a, str>>),
    TIT2(Vec<Cow<'a, str>>),
    TIT3(Vec<Cow<'a, str>>),
    TLEN(Vec<u64>),
+   TMCL(HashMap<Cow<'a, str>, Cow<'a, str>>),
    TMOO(Vec<Cow<'a, str>>),
    TOAL(Vec<Cow<'a, str>>),
    TOFN(Vec<Cow<'a, str>>),
@@ -116,10 +119,12 @@ impl<'a> Frame<'a> {
          Frame::TDTG(v) => OwnedFrame::TDTG(v),
          Frame::TENC(v) => OwnedFrame::TENC(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TEXT(v) => OwnedFrame::TEXT(v.into_iter().map(|x| x.into_owned()).collect()),
+         Frame::TIPL(v) => OwnedFrame::TIPL(v.into_iter().map(|(x, y)| (x.into_owned(), y.into_owned())).collect()),
          Frame::TIT1(v) => OwnedFrame::TIT1(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TIT2(v) => OwnedFrame::TIT2(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TIT3(v) => OwnedFrame::TIT3(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TLEN(v) => OwnedFrame::TLEN(v),
+         Frame::TMCL(v) => OwnedFrame::TMCL(v.into_iter().map(|(x, y)| (x.into_owned(), y.into_owned())).collect()),
          Frame::TMOO(v) => OwnedFrame::TMOO(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TOLY(v) => OwnedFrame::TOLY(v.into_iter().map(|x| x.into_owned()).collect()),
          Frame::TOAL(v) => OwnedFrame::TOAL(v.into_iter().map(|x| x.into_owned()).collect()),
@@ -174,10 +179,12 @@ pub enum OwnedFrame {
    TDTG(Vec<Date>),
    TENC(String),
    TEXT(String),
+   TIPL(HashMap<String, String>),
    TIT1(String),
    TIT2(String),
    TIT3(String),
    TLEN(Vec<u64>),
+   TMCL(HashMap<String, String>),
    TMOO(String),
    TOAL(String),
    TOFN(String),
@@ -499,10 +506,12 @@ impl Iterator for Parser {
             b"TDTG" => Frame::TDTG(map_parse(decode_text_frame(frame_bytes)?)?),
             b"TENC" => Frame::TENC(decode_text_frame(frame_bytes)?),
             b"TEXT" => Frame::TEXT(decode_text_frame(frame_bytes)?),
+            b"TIPL" => Frame::TIPL(decode_text_map_frame(frame_bytes)?),
             b"TIT1" => Frame::TIT1(decode_text_frame(frame_bytes)?),
             b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
             b"TIT3" => Frame::TIT3(decode_text_frame(frame_bytes)?),
             b"TLEN" => Frame::TLEN(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TMCL" => Frame::TMCL(decode_text_map_frame(frame_bytes)?),
             b"TMOO" => Frame::TMOO(decode_text_frame(frame_bytes)?),
             b"TOAL" => Frame::TOAL(decode_text_frame(frame_bytes)?),
             b"TOFN" => Frame::TOFN(decode_text_frame(frame_bytes)?),
@@ -567,12 +576,13 @@ pub struct FrameParseError {
 #[derive(Clone, Debug)]
 pub enum FrameParseErrorReason {
    EmptyFrame,
-   TextDecodeError(TextDecodeError),
-   ParseTrackError(ParseTrackError),
+   FrameTooSmall,
+   MissingNullTerminator,
+   MissingValueInMapFrame,
    ParseDateError(ParseDateError),
    ParseIntError(ParseIntError),
-   MissingNullTerminator,
-   FrameTooSmall,
+   ParseTrackError(ParseTrackError),
+   TextDecodeError(TextDecodeError),
 }
 
 impl From<ParseIntError> for FrameParseErrorReason {
@@ -681,7 +691,11 @@ impl TextEncoding {
 fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result<Vec<Cow<str>>, TextDecodeError> {
    let separator = encoding.get_trailing_null_slice();
    let mut text_segments = Vec::new();
-   while let Some(pos) = text_slice.chunks(separator.len()).position(|x| x == separator).map(|x| x * separator.len()) {
+   while let Some(pos) = text_slice
+      .chunks_exact(separator.len())
+      .position(|x| x == separator)
+      .map(|x| x * separator.len())
+   {
       text_segments.push(decode_text_segment(encoding, &text_slice[..pos])?);
       text_slice = &text_slice[pos + separator.len()..];
    }
@@ -706,7 +720,7 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Cow<
          if text_slice.len() % 2 != 0 {
             return Err(TextDecodeError::InvalidUtf16);
          }
-         // The intermediate buffer is needed due to alignment concerns, I think
+         // The intermediate buffer is needed due to alignment concerns
          let mut buffer = vec![0u16; text_slice.len() / 2].into_boxed_slice();
          unsafe {
             std::ptr::copy_nonoverlapping::<u8>(text_slice.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_slice.len())
@@ -722,6 +736,41 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Cow<
 fn decode_text_frame(frame: &[u8]) -> Result<Vec<Cow<str>>, TextDecodeError> {
    let encoding = TextEncoding::try_from(frame[0])?;
    decode_text_segments(encoding, &frame[1..frame.len()])
+}
+
+/// Panics if frame is 0 length.
+fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<Cow<str>, Cow<str>>, FrameParseErrorReason> {
+   let encoding = TextEncoding::try_from(frame[0])?;
+   let separator = encoding.get_trailing_null_slice();
+   let mut start = 1;
+   let mut segment_iter = frame[1..]
+      .chunks_exact(separator.len())
+      .enumerate()
+      .filter(|(_, x)| *x == separator)
+      .map(|(i, _)| i * separator.len());
+   let mut map = HashMap::new();
+   loop {
+      let (opt_k_end, opt_v_end) = (segment_iter.next(), segment_iter.next());
+      match (opt_k_end, opt_v_end) {
+         (Some(k_end), Some(v_end)) => {
+            let key = decode_text_segment(encoding, &frame[start..k_end])?;
+            let value = decode_text_segment(encoding, &frame[k_end + separator.len()..v_end])?;
+            start = v_end + separator.len();
+            map.insert(key, value);
+         }
+         (Some(k_end), None) => {
+            if k_end + separator.len() == frame.len() {
+               return Err(FrameParseErrorReason::MissingValueInMapFrame);
+            }
+            let key = decode_text_segment(encoding, &frame[start..k_end])?;
+            let value = decode_text_segment(encoding, &frame[k_end + separator.len()..])?;
+            map.insert(key, value);
+            break;
+         }
+         (None, _) => break,
+      }
+   }
+   Ok(map)
 }
 
 fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
@@ -747,11 +796,15 @@ fn decode_description_text(
    bytes: &[u8],
 ) -> Result<(Cow<str>, Vec<Cow<str>>), FrameParseErrorReason> {
    let separator = encoding.get_trailing_null_slice();
-   let description_end = match bytes.chunks(separator.len()).position(|x| x == separator).map(|x| x * separator.len()) {
+   let description_end = match bytes
+      .chunks_exact(separator.len())
+      .position(|x| x == separator)
+      .map(|x| x * separator.len())
+   {
       Some(v) => v,
       None => return Err(FrameParseErrorReason::MissingNullTerminator),
    };
-   
+
    let description = decode_text_segment(encoding, &bytes[..description_end])?;
    let text = decode_text_segments(encoding, &bytes[description_end + separator.len()..])?;
 
