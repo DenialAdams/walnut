@@ -714,8 +714,6 @@ fn decode_text_frame(frame: &[u8]) -> Result<Vec<Cow<str>>, TextDecodeError> {
    let mut text_segments = Vec::new();
    if frame.len() == 1 {
       // Only encoding is present
-      // TODO: this doesnt work now, because we map parse on an empty vec
-      // which does not error :(
       return Ok(text_segments);
    }
 
