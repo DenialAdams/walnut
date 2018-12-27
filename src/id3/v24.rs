@@ -1,6 +1,5 @@
 use super::synchsafe_u32_to_u32;
 use byteorder::{BigEndian, ByteOrder};
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::num::ParseIntError;
@@ -44,171 +43,52 @@ impl Parser {
 }
 
 #[derive(Clone, Debug)]
-pub enum Frame<'a> {
-   COMM(LangDescriptionText<'a>),
-   PRIV(Priv<'a>),
-   TALB(Vec<Cow<'a, str>>),
+pub enum Frame {
+   COMM(LangDescriptionText),
+   PRIV(Priv),
+   TALB(Vec<String>),
    TBPM(Vec<u64>),
-   TCOM(Vec<Cow<'a, str>>),
-   TCON(Vec<Cow<'a, str>>),
-   TCOP(Vec<Copyright<'a>>),
+   TCOM(Vec<String>),
+   TCON(Vec<String>),
+   TCOP(Vec<Copyright>),
    TDEN(Vec<Date>),
    TDLY(Vec<u64>),
    TDOR(Vec<Date>),
    TDRC(Vec<Date>),
    TDRL(Vec<Date>),
    TDTG(Vec<Date>),
-   TENC(Vec<Cow<'a, str>>),
-   TEXT(Vec<Cow<'a, str>>),
-   TIPL(HashMap<Cow<'a, str>, Cow<'a, str>>),
-   TIT1(Vec<Cow<'a, str>>),
-   TIT2(Vec<Cow<'a, str>>),
-   TIT3(Vec<Cow<'a, str>>),
-   TLEN(Vec<u64>),
-   TMCL(HashMap<Cow<'a, str>, Cow<'a, str>>),
-   TMOO(Vec<Cow<'a, str>>),
-   TOAL(Vec<Cow<'a, str>>),
-   TOFN(Vec<Cow<'a, str>>),
-   TOLY(Vec<Cow<'a, str>>),
-   TOPE(Vec<Cow<'a, str>>),
-   TOWN(Vec<Cow<'a, str>>),
-   TPE1(Vec<Cow<'a, str>>),
-   TPE2(Vec<Cow<'a, str>>),
-   TPE3(Vec<Cow<'a, str>>),
-   TPE4(Vec<Cow<'a, str>>),
-   TPOS(Vec<Track>),
-   TPRO(Vec<Copyright<'a>>),
-   TPUB(Vec<Cow<'a, str>>),
-   TRCK(Vec<Track>),
-   TRSN(Vec<Cow<'a, str>>),
-   TRSO(Vec<Cow<'a, str>>),
-   TSOA(Vec<Cow<'a, str>>),
-   TSOP(Vec<Cow<'a, str>>),
-   TSOT(Vec<Cow<'a, str>>),
-   TSRC(Vec<Cow<'a, str>>),
-   TSSE(Vec<Cow<'a, str>>),
-   TSST(Vec<Cow<'a, str>>),
-   TXXX(Txxx<'a>),
-   USLT(LangDescriptionText<'a>),
-   WCOM(String),
-   WCOP(String),
-   WOAF(String),
-   WOAR(String),
-   WOAS(String),
-   WORS(String),
-   WPAY(String),
-   WPUB(String),
-   Unknown(UnknownFrame<'a>),
-}
-
-impl<'a> Frame<'a> {
-   pub fn into_owned(self) -> OwnedFrame {
-      match self {
-         Frame::COMM(v) => OwnedFrame::COMM(v.into_owned()),
-         Frame::PRIV(v) => OwnedFrame::PRIV(v.into_owned()),
-         Frame::TALB(v) => OwnedFrame::TALB(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TBPM(v) => OwnedFrame::TBPM(v),
-         Frame::TCOM(v) => OwnedFrame::TCOM(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TCON(v) => OwnedFrame::TCON(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TCOP(v) => OwnedFrame::TCOP(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TDEN(v) => OwnedFrame::TDEN(v),
-         Frame::TDLY(v) => OwnedFrame::TDLY(v),
-         Frame::TDOR(v) => OwnedFrame::TDOR(v),
-         Frame::TDRC(v) => OwnedFrame::TDRC(v),
-         Frame::TDRL(v) => OwnedFrame::TDRL(v),
-         Frame::TDTG(v) => OwnedFrame::TDTG(v),
-         Frame::TENC(v) => OwnedFrame::TENC(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TEXT(v) => OwnedFrame::TEXT(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TIPL(v) => OwnedFrame::TIPL(v.into_iter().map(|(x, y)| (x.into_owned(), y.into_owned())).collect()),
-         Frame::TIT1(v) => OwnedFrame::TIT1(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TIT2(v) => OwnedFrame::TIT2(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TIT3(v) => OwnedFrame::TIT3(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TLEN(v) => OwnedFrame::TLEN(v),
-         Frame::TMCL(v) => OwnedFrame::TMCL(v.into_iter().map(|(x, y)| (x.into_owned(), y.into_owned())).collect()),
-         Frame::TMOO(v) => OwnedFrame::TMOO(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TOLY(v) => OwnedFrame::TOLY(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TOAL(v) => OwnedFrame::TOAL(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TOFN(v) => OwnedFrame::TOFN(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TOPE(v) => OwnedFrame::TOPE(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TOWN(v) => OwnedFrame::TOWN(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TPE1(v) => OwnedFrame::TPE1(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TPE2(v) => OwnedFrame::TPE2(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TPE3(v) => OwnedFrame::TPE3(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TPE4(v) => OwnedFrame::TPE4(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TPOS(v) => OwnedFrame::TPOS(v),
-         Frame::TPRO(v) => OwnedFrame::TPRO(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TPUB(v) => OwnedFrame::TPUB(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TRCK(v) => OwnedFrame::TRCK(v),
-         Frame::TRSN(v) => OwnedFrame::TRSN(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TRSO(v) => OwnedFrame::TRSO(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TSOA(v) => OwnedFrame::TSOA(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TSOP(v) => OwnedFrame::TSOP(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TSOT(v) => OwnedFrame::TSOT(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TSRC(v) => OwnedFrame::TSRC(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TSSE(v) => OwnedFrame::TSSE(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TSST(v) => OwnedFrame::TSST(v.into_iter().map(|x| x.into_owned()).collect()),
-         Frame::TXXX(v) => OwnedFrame::TXXX(v.into_owned()),
-         Frame::USLT(v) => OwnedFrame::USLT(v.into_owned()),
-         Frame::WCOM(v) => OwnedFrame::WCOM(v),
-         Frame::WCOP(v) => OwnedFrame::WCOP(v),
-         Frame::WOAF(v) => OwnedFrame::WOAF(v),
-         Frame::WOAR(v) => OwnedFrame::WOAR(v),
-         Frame::WOAS(v) => OwnedFrame::WOAS(v),
-         Frame::WORS(v) => OwnedFrame::WORS(v),
-         Frame::WPAY(v) => OwnedFrame::WPAY(v),
-         Frame::WPUB(v) => OwnedFrame::WPUB(v),
-         Frame::Unknown(v) => OwnedFrame::Unknown(v.to_owned()),
-      }
-   }
-}
-
-#[derive(Clone, Debug)]
-pub enum OwnedFrame {
-   COMM(OwnedLangDescriptionText),
-   PRIV(OwnedPriv),
-   TALB(String),
-   TBPM(Vec<u64>),
-   TCOM(String),
-   TCON(String),
-   TCOP(Vec<OwnedCopyright>),
-   TDEN(Vec<Date>),
-   TDLY(Vec<u64>),
-   TDOR(Vec<Date>),
-   TDRC(Vec<Date>),
-   TDRL(Vec<Date>),
-   TDTG(Vec<Date>),
-   TENC(String),
-   TEXT(String),
+   TENC(Vec<String>),
+   TEXT(Vec<String>),
    TIPL(HashMap<String, String>),
-   TIT1(String),
-   TIT2(String),
-   TIT3(String),
+   TIT1(Vec<String>),
+   TIT2(Vec<String>),
+   TIT3(Vec<String>),
    TLEN(Vec<u64>),
    TMCL(HashMap<String, String>),
-   TMOO(String),
-   TOAL(String),
-   TOFN(String),
-   TOLY(String),
-   TOPE(String),
-   TOWN(String),
-   TPE1(String),
-   TPE2(String),
-   TPE3(String),
-   TPE4(String),
+   TMOO(Vec<String>),
+   TOAL(Vec<String>),
+   TOFN(Vec<String>),
+   TOLY(Vec<String>),
+   TOPE(Vec<String>),
+   TOWN(Vec<String>),
+   TPE1(Vec<String>),
+   TPE2(Vec<String>),
+   TPE3(Vec<String>),
+   TPE4(Vec<String>),
    TPOS(Vec<Track>),
-   TPRO(Vec<OwnedCopyright>),
-   TPUB(String),
+   TPRO(Vec<Copyright>),
+   TPUB(Vec<String>),
    TRCK(Vec<Track>),
-   TRSN(String),
-   TRSO(String),
-   TSOA(String),
-   TSOP(String),
-   TSOT(String),
-   TSRC(String),
-   TSSE(String),
-   TSST(String),
-   TXXX(OwnedTxxx),
-   USLT(OwnedLangDescriptionText),
+   TRSN(Vec<String>),
+   TRSO(Vec<String>),
+   TSOA(Vec<String>),
+   TSOP(Vec<String>),
+   TSOT(Vec<String>),
+   TSRC(Vec<String>),
+   TSSE(Vec<String>),
+   TSST(Vec<String>),
+   TXXX(Txxx),
+   USLT(LangDescriptionText),
    WCOM(String),
    WCOP(String),
    WOAF(String),
@@ -217,97 +97,32 @@ pub enum OwnedFrame {
    WORS(String),
    WPAY(String),
    WPUB(String),
-   Unknown(OwnedUnknownFrame),
+   Unknown(UnknownFrame),
 }
 
 #[derive(Clone, Debug)]
-pub struct LangDescriptionText<'a> {
-   pub iso_639_2_lang: [u8; 3],
-   pub description: Cow<'a, str>,
-   pub text: Vec<Cow<'a, str>>,
-}
-
-impl<'a> LangDescriptionText<'a> {
-   fn into_owned(self) -> OwnedLangDescriptionText {
-      OwnedLangDescriptionText {
-         iso_639_2_lang: self.iso_639_2_lang,
-         description: self.description.into_owned(),
-         text: self.text.into_iter().map(|x| x.into_owned()).collect(),
-      }
-   }
-}
-
-#[derive(Clone, Debug)]
-pub struct OwnedLangDescriptionText {
+pub struct LangDescriptionText {
    pub iso_639_2_lang: [u8; 3],
    pub description: String,
    pub text: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Txxx<'a> {
-   pub description: Cow<'a, str>,
-   pub text: Vec<Cow<'a, str>>,
-}
-
-impl<'a> Txxx<'a> {
-   fn into_owned(self) -> OwnedTxxx {
-      OwnedTxxx {
-         description: self.description.into_owned(),
-         text: self.text.into_iter().map(|x| x.into_owned()).collect(),
-      }
-   }
-}
-
-#[derive(Clone, Debug)]
-pub struct OwnedTxxx {
+pub struct Txxx {
    pub description: String,
    pub text: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Priv<'a> {
-   pub owner: String,
-   pub data: &'a [u8],
-}
-
-impl<'a> Priv<'a> {
-   fn into_owned(self) -> OwnedPriv {
-      let mut owned_bytes = vec![0; self.data.len()].into_boxed_slice();
-      owned_bytes.copy_from_slice(self.data);
-
-      OwnedPriv {
-         owner: self.owner,
-         data: owned_bytes,
-      }
-   }
-}
-
-#[derive(Clone, Debug)]
-pub struct OwnedPriv {
+pub struct Priv {
    pub owner: String,
    pub data: Box<[u8]>,
 }
 
 #[derive(Clone, Debug)]
-pub struct OwnedCopyright {
+pub struct Copyright {
    pub year: u16,
    pub message: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct Copyright<'a> {
-   pub year: u16,
-   pub message: Cow<'a, str>,
-}
-
-impl<'a> Copyright<'a> {
-   fn into_owned(self) -> OwnedCopyright {
-      OwnedCopyright {
-         year: self.year,
-         message: self.message.into_owned(),
-      }
-   }
 }
 
 #[derive(Clone, Debug)]
@@ -417,30 +232,12 @@ impl FromStr for Track {
 }
 
 #[derive(Clone, Debug)]
-pub struct UnknownFrame<'a> {
-   pub name: [u8; 4],
-   pub data: &'a [u8],
-}
-
-impl<'a> UnknownFrame<'a> {
-   fn to_owned(&self) -> OwnedUnknownFrame {
-      let mut owned_bytes = vec![0; self.data.len()].into_boxed_slice();
-      owned_bytes.copy_from_slice(self.data);
-
-      OwnedUnknownFrame {
-         name: self.name,
-         data: owned_bytes,
-      }
-   }
-}
-
-#[derive(Clone, Debug)]
-pub struct OwnedUnknownFrame {
+pub struct UnknownFrame {
    pub name: [u8; 4],
    pub data: Box<[u8]>,
 }
 
-fn map_parse<T: FromStr>(str_vec: Vec<Cow<str>>) -> Result<Vec<T>, T::Err> {
+fn map_parse<T: FromStr>(str_vec: Vec<String>) -> Result<Vec<T>, T::Err> {
    let mut new_vec = Vec::new();
    for item in str_vec {
       new_vec.push(item.parse()?);
@@ -449,9 +246,9 @@ fn map_parse<T: FromStr>(str_vec: Vec<Cow<str>>) -> Result<Vec<T>, T::Err> {
 }
 
 impl Iterator for Parser {
-   type Item = Result<OwnedFrame, FrameParseError>;
+   type Item = Result<Frame, FrameParseError>;
 
-   fn next(&mut self) -> Option<Result<OwnedFrame, FrameParseError>> {
+   fn next(&mut self) -> Option<Result<Frame, FrameParseError>> {
       // Each frame must be at least 10 bytes
       if self.content.len() - self.cursor < 10 {
          return None;
@@ -552,7 +349,7 @@ impl Iterator for Parser {
             b"WPUB" => Frame::WPUB(decode_url_frame(frame_bytes)),
             _ => Frame::Unknown(UnknownFrame {
                name,
-               data: frame_bytes,
+               data: Box::from(frame_bytes),
             }),
          }
       };
@@ -561,7 +358,6 @@ impl Iterator for Parser {
 
       Some(
          result
-            .map(|v| v.into_owned())
             .map_err(|e| FrameParseError { name, reason: e }),
       )
    }
@@ -688,7 +484,7 @@ impl TextEncoding {
    }
 }
 
-fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result<Vec<Cow<str>>, TextDecodeError> {
+fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result<Vec<String>, TextDecodeError> {
    let separator = encoding.get_trailing_null_slice();
    let mut text_segments = Vec::new();
    while let Some(pos) = text_slice
@@ -709,7 +505,7 @@ fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result
    Ok(text_segments)
 }
 
-fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Cow<str>, TextDecodeError> {
+fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<String, TextDecodeError> {
    match encoding {
       TextEncoding::ISO8859 => Ok(text_slice.iter().map(|c| *c as char).collect()),
       TextEncoding::UTF16BOM => {
@@ -725,21 +521,21 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Cow<
          unsafe {
             std::ptr::copy_nonoverlapping::<u8>(text_slice.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_slice.len())
          };
-         Ok(Cow::Owned(String::from_utf16(&buffer[1..])?)) // 1.. to skip BOM
+         Ok(String::from_utf16(&buffer[1..])?) // 1.. to skip BOM
       }
       TextEncoding::UTF16BE => unimplemented!(),
-      TextEncoding::UTF8 => Ok(Cow::Borrowed(std::str::from_utf8(text_slice)?)),
+      TextEncoding::UTF8 => Ok(String::from(std::str::from_utf8(text_slice)?)),
    }
 }
 
 /// Panics if frame is 0 length.
-fn decode_text_frame(frame: &[u8]) -> Result<Vec<Cow<str>>, TextDecodeError> {
+fn decode_text_frame(frame: &[u8]) -> Result<Vec<String>, TextDecodeError> {
    let encoding = TextEncoding::try_from(frame[0])?;
    decode_text_segments(encoding, &frame[1..frame.len()])
 }
 
 /// Panics if frame is 0 length.
-fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<Cow<str>, Cow<str>>, FrameParseErrorReason> {
+fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<String, String>, FrameParseErrorReason> {
    let encoding = TextEncoding::try_from(frame[0])?;
    let separator = encoding.get_trailing_null_slice();
    let mut start = 1;
@@ -787,14 +583,14 @@ fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
 
    Ok(Frame::PRIV(Priv {
       owner: frame_bytes[0..owner_end].iter().map(|c| *c as char).collect(), // IS0 8859,
-      data: data_ref,
+      data: Box::from(data_ref),
    }))
 }
 
 fn decode_description_text(
    encoding: TextEncoding,
    bytes: &[u8],
-) -> Result<(Cow<str>, Vec<Cow<str>>), FrameParseErrorReason> {
+) -> Result<(String, Vec<String>), FrameParseErrorReason> {
    let separator = encoding.get_trailing_null_slice();
    let description_end = match bytes
       .chunks_exact(separator.len())
@@ -849,116 +645,107 @@ fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
    let mut genres = decode_text_frame(frame_bytes)?;
    for genre in genres.iter_mut() {
       match genre.as_ref() {
-         "0" => *genre = Cow::Borrowed("Blues"),
-         "1" => *genre = Cow::Borrowed("Classic Rock"),
-         "2" => *genre = Cow::Borrowed("Country"),
-         "3" => *genre = Cow::Borrowed("Dance"),
-         "4" => *genre = Cow::Borrowed("Disco"),
-         "5" => *genre = Cow::Borrowed("Funk"),
-         "6" => *genre = Cow::Borrowed("Grunge"),
-         "7" => *genre = Cow::Borrowed("Hip-Hop"),
-         "8" => *genre = Cow::Borrowed("Jazz"),
-         "9" => *genre = Cow::Borrowed("Metal"),
-         "10" => *genre = Cow::Borrowed("New Age"),
-         "11" => *genre = Cow::Borrowed("Oldies"),
-         "12" => *genre = Cow::Borrowed("Other"),
-         "13" => *genre = Cow::Borrowed("Pop"),
-         "14" => *genre = Cow::Borrowed("R&B"),
-         "15" => *genre = Cow::Borrowed("Rap"),
-         "16" => *genre = Cow::Borrowed("Reggae"),
-         "17" => *genre = Cow::Borrowed("Rock"),
-         "18" => *genre = Cow::Borrowed("Techno"),
-         "19" => *genre = Cow::Borrowed("Industrial"),
-         "20" => *genre = Cow::Borrowed("Alternative"),
-         "21" => *genre = Cow::Borrowed("Ska"),
-         "22" => *genre = Cow::Borrowed("Death Metal"),
-         "23" => *genre = Cow::Borrowed("Pranks"),
-         "24" => *genre = Cow::Borrowed("Soundtrack"),
-         "25" => *genre = Cow::Borrowed("Euro-Techno"),
-         "26" => *genre = Cow::Borrowed("Ambient"),
-         "27" => *genre = Cow::Borrowed("Trip-Hop"),
-         "28" => *genre = Cow::Borrowed("Vocal"),
-         "29" => *genre = Cow::Borrowed("Jazz+Funk"),
-         "30" => *genre = Cow::Borrowed("Fusion"),
-         "31" => *genre = Cow::Borrowed("Trance"),
-         "32" => *genre = Cow::Borrowed("Classical"),
-         "33" => *genre = Cow::Borrowed("Instrumental"),
-         "34" => *genre = Cow::Borrowed("Acid"),
-         "35" => *genre = Cow::Borrowed("House"),
-         "36" => *genre = Cow::Borrowed("Game"),
-         "37" => *genre = Cow::Borrowed("Sound Clip"),
-         "38" => *genre = Cow::Borrowed("Gospel"),
-         "39" => *genre = Cow::Borrowed("Noise"),
-         "40" => *genre = Cow::Borrowed("AlternRock"),
-         "41" => *genre = Cow::Borrowed("Bass"),
-         "42" => *genre = Cow::Borrowed("Soul"),
-         "43" => *genre = Cow::Borrowed("Punk"),
-         "44" => *genre = Cow::Borrowed("Space"),
-         "45" => *genre = Cow::Borrowed("Meditative"),
-         "46" => *genre = Cow::Borrowed("Instrumental Pop"),
-         "47" => *genre = Cow::Borrowed("Instrumental Rock"),
-         "48" => *genre = Cow::Borrowed("Ethnic"),
-         "49" => *genre = Cow::Borrowed("Gothic"),
-         "50" => *genre = Cow::Borrowed("Darkwave"),
-         "51" => *genre = Cow::Borrowed("Techno-Industrial"),
-         "52" => *genre = Cow::Borrowed("Electronic"),
-         "53" => *genre = Cow::Borrowed("Pop-Folk"),
-         "54" => *genre = Cow::Borrowed("Eurodance"),
-         "55" => *genre = Cow::Borrowed("Dream"),
-         "56" => *genre = Cow::Borrowed("Southern Rock"),
-         "57" => *genre = Cow::Borrowed("Comedy"),
-         "58" => *genre = Cow::Borrowed("Cult"),
-         "59" => *genre = Cow::Borrowed("Gangsta"),
-         "60" => *genre = Cow::Borrowed("Top 40"),
-         "61" => *genre = Cow::Borrowed("Christian Rap"),
-         "62" => *genre = Cow::Borrowed("Pop/Funk"),
-         "63" => *genre = Cow::Borrowed("Jungle"),
-         "64" => *genre = Cow::Borrowed("Native American"),
-         "65" => *genre = Cow::Borrowed("Cabaret"),
-         "66" => *genre = Cow::Borrowed("New Wave"),
-         "67" => *genre = Cow::Borrowed("Psychedelic"),
-         "68" => *genre = Cow::Borrowed("Rave"),
-         "69" => *genre = Cow::Borrowed("Showtunes"),
-         "70" => *genre = Cow::Borrowed("Trailer"),
-         "71" => *genre = Cow::Borrowed("Lo-Fi"),
-         "72" => *genre = Cow::Borrowed("Tribal"),
-         "73" => *genre = Cow::Borrowed("Acid Punk"),
-         "74" => *genre = Cow::Borrowed("Acid Jazz"),
-         "75" => *genre = Cow::Borrowed("Polka"),
-         "76" => *genre = Cow::Borrowed("Retro"),
-         "77" => *genre = Cow::Borrowed("Musical"),
-         "78" => *genre = Cow::Borrowed("Rock & Roll"),
-         "79" => *genre = Cow::Borrowed("Hard Rock"),
-         "RX" => *genre = Cow::Borrowed("Remix"),
-         "CR" => *genre = Cow::Borrowed("Cover"),
+         "0" => *genre = String::from("Blues"),
+         "1" => *genre = String::from("Classic Rock"),
+         "2" => *genre = String::from("Country"),
+         "3" => *genre = String::from("Dance"),
+         "4" => *genre = String::from("Disco"),
+         "5" => *genre = String::from("Funk"),
+         "6" => *genre = String::from("Grunge"),
+         "7" => *genre = String::from("Hip-Hop"),
+         "8" => *genre = String::from("Jazz"),
+         "9" => *genre = String::from("Metal"),
+         "10" => *genre = String::from("New Age"),
+         "11" => *genre = String::from("Oldies"),
+         "12" => *genre = String::from("Other"),
+         "13" => *genre = String::from("Pop"),
+         "14" => *genre = String::from("R&B"),
+         "15" => *genre = String::from("Rap"),
+         "16" => *genre = String::from("Reggae"),
+         "17" => *genre = String::from("Rock"),
+         "18" => *genre = String::from("Techno"),
+         "19" => *genre = String::from("Industrial"),
+         "20" => *genre = String::from("Alternative"),
+         "21" => *genre = String::from("Ska"),
+         "22" => *genre = String::from("Death Metal"),
+         "23" => *genre = String::from("Pranks"),
+         "24" => *genre = String::from("Soundtrack"),
+         "25" => *genre = String::from("Euro-Techno"),
+         "26" => *genre = String::from("Ambient"),
+         "27" => *genre = String::from("Trip-Hop"),
+         "28" => *genre = String::from("Vocal"),
+         "29" => *genre = String::from("Jazz+Funk"),
+         "30" => *genre = String::from("Fusion"),
+         "31" => *genre = String::from("Trance"),
+         "32" => *genre = String::from("Classical"),
+         "33" => *genre = String::from("Instrumental"),
+         "34" => *genre = String::from("Acid"),
+         "35" => *genre = String::from("House"),
+         "36" => *genre = String::from("Game"),
+         "37" => *genre = String::from("Sound Clip"),
+         "38" => *genre = String::from("Gospel"),
+         "39" => *genre = String::from("Noise"),
+         "40" => *genre = String::from("AlternRock"),
+         "41" => *genre = String::from("Bass"),
+         "42" => *genre = String::from("Soul"),
+         "43" => *genre = String::from("Punk"),
+         "44" => *genre = String::from("Space"),
+         "45" => *genre = String::from("Meditative"),
+         "46" => *genre = String::from("Instrumental Pop"),
+         "47" => *genre = String::from("Instrumental Rock"),
+         "48" => *genre = String::from("Ethnic"),
+         "49" => *genre = String::from("Gothic"),
+         "50" => *genre = String::from("Darkwave"),
+         "51" => *genre = String::from("Techno-Industrial"),
+         "52" => *genre = String::from("Electronic"),
+         "53" => *genre = String::from("Pop-Folk"),
+         "54" => *genre = String::from("Eurodance"),
+         "55" => *genre = String::from("Dream"),
+         "56" => *genre = String::from("Southern Rock"),
+         "57" => *genre = String::from("Comedy"),
+         "58" => *genre = String::from("Cult"),
+         "59" => *genre = String::from("Gangsta"),
+         "60" => *genre = String::from("Top 40"),
+         "61" => *genre = String::from("Christian Rap"),
+         "62" => *genre = String::from("Pop/Funk"),
+         "63" => *genre = String::from("Jungle"),
+         "64" => *genre = String::from("Native American"),
+         "65" => *genre = String::from("Cabaret"),
+         "66" => *genre = String::from("New Wave"),
+         "67" => *genre = String::from("Psychedelic"),
+         "68" => *genre = String::from("Rave"),
+         "69" => *genre = String::from("Showtunes"),
+         "70" => *genre = String::from("Trailer"),
+         "71" => *genre = String::from("Lo-Fi"),
+         "72" => *genre = String::from("Tribal"),
+         "73" => *genre = String::from("Acid Punk"),
+         "74" => *genre = String::from("Acid Jazz"),
+         "75" => *genre = String::from("Polka"),
+         "76" => *genre = String::from("Retro"),
+         "77" => *genre = String::from("Musical"),
+         "78" => *genre = String::from("Rock & Roll"),
+         "79" => *genre = String::from("Hard Rock"),
+         "RX" => *genre = String::from("Remix"),
+         "CR" => *genre = String::from("Cover"),
          _ => (),
       };
    }
    Ok(Frame::TCON(genres))
 }
 
-fn decode_copyright_frame(mut text: Cow<str>) -> Result<Copyright, FrameParseErrorReason> {
+fn decode_copyright_frame(mut text: String) -> Result<Copyright, FrameParseErrorReason> {
    if text.len() < 4 {
-      // TODO: this seems misleading, it is not necessarily
-      // the entire frame that is too small, just this segment
       return Err(FrameParseErrorReason::FrameTooSmall);
    }
    let year = text[0..4].parse()?;
-   match text {
-      Cow::Owned(ref mut s) => {
-         s.remove(0);
-         s.remove(0);
-         s.remove(0);
-         s.remove(0);
-         if s.starts_with(' ') {
-            s.remove(0);
-         }
-      }
-      Cow::Borrowed(ref mut s) => {
-         *s = &s[4..];
-         if s.starts_with(' ') {
-            *s = &s[1..];
-         }
+   let text_bytes = unsafe { text.as_mut_vec() };
+   unsafe {
+      if text_bytes.len() > 4 && text_bytes[4] == b' ' {
+         text_bytes.set_len(text_bytes.len() - 5);
+         std::ptr::copy(text_bytes.as_ptr().offset(5), text_bytes.as_mut_ptr(), text_bytes.len());
+      } else {
+         text_bytes.set_len(text_bytes.len() - 4);
+         std::ptr::copy(text_bytes.as_ptr().offset(4), text_bytes.as_mut_ptr(), text_bytes.len());
       }
    }
    Ok(Copyright { year, message: text })

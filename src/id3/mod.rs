@@ -30,13 +30,13 @@ impl From<io::Error> for TagParseError {
 }
 
 pub struct Parser {
-   inner: Box<dyn Iterator<Item = Result<v24::OwnedFrame, v24::FrameParseError>>>,
+   inner: Box<dyn Iterator<Item = Result<v24::Frame, v24::FrameParseError>>>,
 }
 
 impl Iterator for Parser {
-   type Item = Result<v24::OwnedFrame, v24::FrameParseError>;
+   type Item = Result<v24::Frame, v24::FrameParseError>;
 
-   fn next(&mut self) -> Option<Result<v24::OwnedFrame, v24::FrameParseError>> {
+   fn next(&mut self) -> Option<Result<v24::Frame, v24::FrameParseError>> {
       self.inner.next()
    }
 }
