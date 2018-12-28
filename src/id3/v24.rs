@@ -554,7 +554,7 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &mut [u8]) -> Result<
 /// Panics if frame is 0 length.
 fn decode_text_frame(frame: &mut [u8]) -> Result<Vec<String>, TextDecodeError> {
    let encoding = TextEncoding::try_from(frame[0])?;
-   decode_text_segments(encoding, &mut frame[1..frame.len()])
+   decode_text_segments(encoding, &mut frame[1..])
 }
 
 /// Panics if frame is 0 length.
@@ -630,7 +630,7 @@ fn decode_description_text(
    Ok((description, text))
 }
 
-fn decode_lang_description_text(frame_bytes: &[u8]) -> Result<LangDescriptionText, FrameParseErrorReason> {
+fn decode_lang_description_text(frame_bytes: &mut [u8]) -> Result<LangDescriptionText, FrameParseErrorReason> {
    if frame_bytes.len() < 5 {
       return Err(FrameParseErrorReason::FrameTooSmall);
    }
@@ -643,7 +643,7 @@ fn decode_lang_description_text(frame_bytes: &[u8]) -> Result<LangDescriptionTex
       lang_code
    };
 
-   let (description, text) = decode_description_text(encoding, &frame_bytes[4..])?;
+   let (description, text) = decode_description_text(encoding, &mut frame_bytes[4..])?;
 
    Ok(LangDescriptionText {
       iso_639_2_lang,
