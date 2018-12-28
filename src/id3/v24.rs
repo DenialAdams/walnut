@@ -278,7 +278,7 @@ impl Iterator for Parser {
          }));
       }
 
-      let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
+      let frame_bytes = &mut self.content[self.cursor..self.cursor + frame_size as usize];
 
       let result: Result<Frame, FrameParseErrorReason> = try {
          match &name {
@@ -349,7 +349,7 @@ impl Iterator for Parser {
             b"WPUB" => Frame::WPUB(decode_url_frame(frame_bytes)),
             _ => Frame::Unknown(UnknownFrame {
                name,
-               data: Box::from(frame_bytes),
+               data: Box::from(&*frame_bytes),
             }),
          }
       };
@@ -481,7 +481,7 @@ impl TextEncoding {
    }
 }
 
-fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result<Vec<String>, TextDecodeError> {
+fn decode_text_segments(encoding: TextEncoding, mut text_slice: &mut [u8]) -> Result<Vec<String>, TextDecodeError> {
    let separator = encoding.get_trailing_null_slice();
    let mut text_segments = Vec::new();
    while let Some(pos) = text_slice
@@ -489,8 +489,8 @@ fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result
       .position(|x| x == separator)
       .map(|x| x * separator.len())
    {
-      text_segments.push(decode_text_segment(encoding, &text_slice[..pos])?);
-      text_slice = &text_slice[pos + separator.len()..];
+      text_segments.push(decode_text_segment(encoding, &mut text_slice[..pos])?);
+      text_slice = &mut text_slice[pos + separator.len()..];
    }
 
    if !text_slice.is_empty() {
@@ -502,16 +502,23 @@ fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result
    Ok(text_segments)
 }
 
-fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<String, TextDecodeError> {
+fn decode_text_segment(encoding: TextEncoding, text_slice: &mut [u8]) -> Result<String, TextDecodeError> {
    match encoding {
       TextEncoding::ISO8859 => Ok(text_slice.iter().map(|c| *c as char).collect()),
       TextEncoding::UTF16BOM => {
-         if text_slice[0..2] == [0xFE, 0xFF] {
-            // Big endian
-            unimplemented!();
-         }
          if text_slice.len() % 2 != 0 {
             return Err(TextDecodeError::InvalidUtf16);
+         }
+         // @Speed: if we wrote our own String::from_utf16 that was BE aware,
+         // we wouldn't need to swap all of the bytes beforehand
+         // also, we could do this swapping as we copy it into the intermediate buffer
+         // AND, then we wouldn't need text_slice to be a mutable ref
+         if text_slice[0..2] == [0xFE, 0xFF] {
+            text_slice.chunks_exact_mut(2).for_each(|c| {
+               let temp = c[0];
+               c[0] = c[1];
+               c[1] = temp;
+            });
          }
          // The intermediate buffer is needed due to alignment concerns
          let mut buffer = vec![0u16; text_slice.len() / 2].into_boxed_slice();
@@ -520,19 +527,38 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Stri
          };
          Ok(String::from_utf16(&buffer[1..])?) // 1.. to skip BOM
       }
-      TextEncoding::UTF16BE => unimplemented!(),
+      TextEncoding::UTF16BE => {
+         if text_slice.len() % 2 != 0 {
+            return Err(TextDecodeError::InvalidUtf16);
+         }
+         // @Speed: if we wrote our own String::from_utf16 that was BE aware,
+         // we wouldn't need to swap all of the bytes beforehand
+         // also, we could do this swapping as we copy it into the intermediate buffer
+         // AND, then we wouldn't need text_slice to be a mutable ref
+         text_slice.chunks_exact_mut(2).for_each(|c| {
+            let temp = c[0];
+            c[0] = c[1];
+            c[1] = temp;
+         });
+         // The intermediate buffer is needed due to alignment concerns
+         let mut buffer = vec![0u16; text_slice.len() / 2].into_boxed_slice();
+         unsafe {
+            std::ptr::copy_nonoverlapping::<u8>(text_slice.as_ptr(), buffer.as_mut_ptr() as *mut u8, text_slice.len())
+         };
+         Ok(String::from_utf16(&buffer)?) // No BOM
+      },
       TextEncoding::UTF8 => Ok(String::from(std::str::from_utf8(text_slice)?)),
    }
 }
 
 /// Panics if frame is 0 length.
-fn decode_text_frame(frame: &[u8]) -> Result<Vec<String>, TextDecodeError> {
+fn decode_text_frame(frame: &mut [u8]) -> Result<Vec<String>, TextDecodeError> {
    let encoding = TextEncoding::try_from(frame[0])?;
-   decode_text_segments(encoding, &frame[1..frame.len()])
+   decode_text_segments(encoding, &mut frame[1..frame.len()])
 }
 
 /// Panics if frame is 0 length.
-fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<String, String>, FrameParseErrorReason> {
+fn decode_text_map_frame(frame: &mut [u8]) -> Result<HashMap<String, String>, FrameParseErrorReason> {
    let encoding = TextEncoding::try_from(frame[0])?;
    let separator = encoding.get_trailing_null_slice();
    let mut start = 1;
@@ -546,8 +572,8 @@ fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<String, String>, FrameP
       let (opt_k_end, opt_v_end) = (segment_iter.next(), segment_iter.next());
       match (opt_k_end, opt_v_end) {
          (Some(k_end), Some(v_end)) => {
-            let key = decode_text_segment(encoding, &frame[start..k_end])?;
-            let value = decode_text_segment(encoding, &frame[k_end + separator.len()..v_end])?;
+            let key = decode_text_segment(encoding, &mut frame[start..k_end])?;
+            let value = decode_text_segment(encoding, &mut frame[k_end + separator.len()..v_end])?;
             start = v_end + separator.len();
             map.insert(key, value);
          }
@@ -555,8 +581,8 @@ fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<String, String>, FrameP
             if k_end + separator.len() == frame.len() {
                return Err(FrameParseErrorReason::MissingValueInMapFrame);
             }
-            let key = decode_text_segment(encoding, &frame[start..k_end])?;
-            let value = decode_text_segment(encoding, &frame[k_end + separator.len()..])?;
+            let key = decode_text_segment(encoding, &mut frame[start..k_end])?;
+            let value = decode_text_segment(encoding, &mut frame[k_end + separator.len()..])?;
             map.insert(key, value);
             break;
          }
@@ -586,7 +612,7 @@ fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
 
 fn decode_description_text(
    encoding: TextEncoding,
-   bytes: &[u8],
+   bytes: &mut [u8],
 ) -> Result<(String, Vec<String>), FrameParseErrorReason> {
    let separator = encoding.get_trailing_null_slice();
    let description_end = match bytes
@@ -598,8 +624,8 @@ fn decode_description_text(
       None => return Err(FrameParseErrorReason::MissingNullTerminator),
    };
 
-   let description = decode_text_segment(encoding, &bytes[..description_end])?;
-   let text = decode_text_segments(encoding, &bytes[description_end + separator.len()..])?;
+   let description = decode_text_segment(encoding, &mut bytes[..description_end])?;
+   let text = decode_text_segments(encoding, &mut bytes[description_end + separator.len()..])?;
 
    Ok((description, text))
 }
@@ -626,19 +652,19 @@ fn decode_lang_description_text(frame_bytes: &[u8]) -> Result<LangDescriptionTex
    })
 }
 
-fn decode_txxx_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
+fn decode_txxx_frame(frame_bytes: &mut [u8]) -> Result<Frame, FrameParseErrorReason> {
    if frame_bytes.len() < 2 {
       return Err(FrameParseErrorReason::FrameTooSmall);
    }
 
    let encoding = TextEncoding::try_from(frame_bytes[0])?;
 
-   let (description, text) = decode_description_text(encoding, &frame_bytes[1..])?;
+   let (description, text) = decode_description_text(encoding, &mut frame_bytes[1..])?;
 
    Ok(Frame::TXXX(Txxx { description, text }))
 }
 
-fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
+fn decode_genre_frame(frame_bytes: &mut [u8]) -> Result<Frame, TextDecodeError> {
    let mut genres = decode_text_frame(frame_bytes)?;
    for genre in genres.iter_mut() {
       match genre.as_ref() {
