@@ -51,6 +51,7 @@ fn main() {
                   Ok(frame) => match frame {
                      id3::v24::Frame::COMM(x) => println!("Comment: {:?}", x),
                      id3::v24::Frame::PRIV(x) => println!("Private: {:?}", x),
+                     id3::v24::Frame::RVRB(x) => println!("Reverb: {:?}", x),
                      id3::v24::Frame::TALB(x) => println!("Album: {:?}", x),
                      id3::v24::Frame::TBPM(x) => println!("BPM: {:?}", x),
                      id3::v24::Frame::TCOM(x) => println!("Composer: {:?}", x),

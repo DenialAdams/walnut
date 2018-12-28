@@ -46,6 +46,7 @@ impl Parser {
 pub enum Frame {
    COMM(LangDescriptionText),
    PRIV(Priv),
+   RVRB(Reverb),
    TALB(Vec<String>),
    TBPM(Vec<u64>),
    TCOM(Vec<String>),
@@ -123,6 +124,20 @@ pub struct Priv {
 pub struct Copyright {
    pub year: u16,
    pub message: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Reverb {
+   pub ms_left: u16,
+   pub ms_right: u16,
+   pub bounces_left: u8,
+   pub bounces_right: u8,
+   pub feedback_left_to_left: u8,
+   pub feedback_left_to_right: u8,
+   pub feedback_right_to_right: u8,
+   pub feedback_right_to_left: u8,
+   pub premix_left_to_right: u8,
+   pub premix_right_to_left: u8,
 }
 
 #[derive(Clone, Debug)]
@@ -284,6 +299,7 @@ impl Iterator for Parser {
          match &name {
             b"COMM" => Frame::COMM(decode_lang_description_text(frame_bytes)?),
             b"PRIV" => decode_priv_frame(frame_bytes)?,
+            b"RVRB" => Frame::RVRB(decode_reverb_frame(frame_bytes)?),
             b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?),
             b"TBPM" => Frame::TBPM(map_parse(decode_text_frame(frame_bytes)?)?),
             b"TCOM" => Frame::TCOM(decode_text_frame(frame_bytes)?),
@@ -775,4 +791,23 @@ fn decode_url_frame(mut frame: &[u8]) -> String {
    }
 
    frame.iter().map(|c| *c as char).collect()
+}
+
+fn decode_reverb_frame(frame: &[u8]) -> Result<Reverb, FrameParseErrorReason> {
+   if frame.len() < 12 {
+      return Err(FrameParseErrorReason::FrameTooSmall);
+   }
+
+   Ok(Reverb {
+      ms_left: BigEndian::read_u16(&frame[0..2]),
+      ms_right: BigEndian::read_u16(&frame[2..4]),
+      bounces_left: frame[4],
+      bounces_right: frame[5],
+      feedback_left_to_left: frame[6],
+      feedback_left_to_right: frame[7],
+      feedback_right_to_right: frame[8],
+      feedback_right_to_left: frame[9],
+      premix_left_to_right: frame[10],
+      premix_right_to_left: frame[11],
+   })
 }
