@@ -531,7 +531,7 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Stri
          if text_slice.len() % 2 != 0 {
             return Err(TextDecodeError::InvalidUtf16);
          }
-         // @Speed this can be unitialized
+         // @Speed this can be uninitialized
          // The intermediate buffer is needed due to alignment concerns
          let mut buffer = vec![0u16; text_slice.len() / 2].into_boxed_slice();
          text_slice.chunks(2).enumerate().for_each(|(i, c)| {
