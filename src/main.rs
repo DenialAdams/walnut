@@ -12,15 +12,7 @@ mod id3;
 
 use std::fs::File;
 use std::time::Instant;
-use walkdir::{DirEntry, WalkDir};
-
-fn is_mp3_file(entry: &DirEntry) -> bool {
-   if let Some(ref extension) = entry.file_name().to_string_lossy().split('.').last() {
-      *extension == "mp3"
-   } else {
-      false
-   }
-}
+use walkdir::WalkDir;
 
 fn main() {
    pretty_env_logger::init();
@@ -36,8 +28,7 @@ fn main() {
             None
          }
       })
-      .filter(|v| v.file_type().is_file())
-      .filter(is_mp3_file)
+      .filter(|v| v.file_type().is_file() && v.file_name().to_string_lossy().split('.').last() == Some("mp3"))
       .collect();
 
    let start = Instant::now();
@@ -111,9 +102,7 @@ fn main() {
                      id3::v24::Frame::WORS(x) => println!("Internet Radio Station URL: {:?}", x),
                      id3::v24::Frame::WPAY(x) => println!("Payment URL: {:?}", x),
                      id3::v24::Frame::WPUB(x) => println!("Publisher URL: {:?}", x),
-                     id3::v24::Frame::Unknown(u) => {
-                        println!("Unknown frame: {}", String::from_utf8_lossy(&u.name))
-                     }
+                     id3::v24::Frame::Unknown(u) => println!("Unknown frame: {}", String::from_utf8_lossy(&u.name)),
                   },
                }
             }

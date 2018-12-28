@@ -356,10 +356,7 @@ impl Iterator for Parser {
 
       self.cursor += frame_size as usize;
 
-      Some(
-         result
-            .map_err(|e| FrameParseError { name, reason: e }),
-      )
+      Some(result.map_err(|e| FrameParseError { name, reason: e }))
    }
 }
 
