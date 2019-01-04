@@ -104,7 +104,7 @@ pub enum FrameData {
    WORS(String),
    WPAY(String),
    WPUB(String),
-   Unknown(UnknownFrame),
+   Unknown(Unknown),
 }
 
 #[derive(Clone, Debug)]
@@ -253,7 +253,7 @@ impl FromStr for Track {
 }
 
 #[derive(Clone, Debug)]
-pub struct UnknownFrame {
+pub struct Unknown {
    pub name: [u8; 4],
    pub data: Box<[u8]>,
 }
@@ -375,7 +375,7 @@ impl Iterator for Parser {
             b"WORS" => FrameData::WORS(decode_url_frame(frame_bytes)),
             b"WPAY" => FrameData::WPAY(decode_url_frame(frame_bytes)),
             b"WPUB" => FrameData::WPUB(decode_url_frame(frame_bytes)),
-            _ => FrameData::Unknown(UnknownFrame {
+            _ => FrameData::Unknown(Unknown {
                name,
                data: Box::from(frame_bytes),
             }),
