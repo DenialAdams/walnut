@@ -43,7 +43,13 @@ impl Parser {
 }
 
 #[derive(Clone, Debug)]
-pub enum Frame {
+pub struct Frame {
+   pub data: FrameData,
+   pub group: Option<u8>,
+}
+
+#[derive(Clone, Debug)]
+pub enum FrameData {
    COMM(LangDescriptionText),
    PRIV(Priv),
    RVRB(Reverb),
@@ -276,94 +282,99 @@ impl Iterator for Parser {
          return None;
       }
 
-      let frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(&self.content[self.cursor + 4..self.cursor + 8]));
+      let mut frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(&self.content[self.cursor + 4..self.cursor + 8]));
       let frame_flags_raw = BigEndian::read_u16(&self.content[self.cursor + 8..self.cursor + 10]);
       let frame_flags = FrameFlags::from_bits_truncate(frame_flags_raw);
 
-      if !frame_flags.is_empty() {
-         unimplemented!();
-      }
-
       self.cursor += 10;
 
-      if frame_size == 0 {
-         return Some(Err(FrameParseError {
-            name,
-            reason: FrameParseErrorReason::EmptyFrame,
-         }));
+      let mut group = None;
+      if frame_flags.contains(FrameFlags::GROUPING_IDENTITY) {
+         group = Some(self.content[self.cursor]);
+         self.cursor += 1;
+         // The frame size includes the
+         // saturating sub so we don't overflow on a bad frame size input
+         frame_size.saturating_sub(1);
+      }
+
+      if frame_flags.contains(FrameFlags::DATA_LENGTH_INDICATOR) {
+         // TODO: we only need to use this when we implement compression,
+         // and some forms of encryption.
+         frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(&self.content[self.cursor..self.cursor + 4]));
+         self.cursor += 4;
       }
 
       let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
 
-      let result: Result<Frame, FrameParseErrorReason> = try {
+      let result: Result<FrameData, FrameParseErrorReason> = try {
          match &name {
-            b"COMM" => Frame::COMM(decode_lang_description_text(frame_bytes)?),
+            b"COMM" => FrameData::COMM(decode_lang_description_text(frame_bytes)?),
             b"PRIV" => decode_priv_frame(frame_bytes)?,
-            b"RVRB" => Frame::RVRB(decode_reverb_frame(frame_bytes)?),
-            b"TALB" => Frame::TALB(decode_text_frame(frame_bytes)?),
-            b"TBPM" => Frame::TBPM(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TCOM" => Frame::TCOM(decode_text_frame(frame_bytes)?),
+            b"RVRB" => FrameData::RVRB(decode_reverb_frame(frame_bytes)?),
+            b"TALB" => FrameData::TALB(decode_text_frame(frame_bytes)?),
+            b"TBPM" => FrameData::TBPM(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TCOM" => FrameData::TCOM(decode_text_frame(frame_bytes)?),
             b"TCON" => decode_genre_frame(frame_bytes)?,
-            b"TCOP" => Frame::TCOP({
+            b"TCOP" => FrameData::TCOP({
                let mut new_vec = Vec::new();
                for segment in decode_text_frame(frame_bytes)? {
                   new_vec.push(decode_copyright_frame(segment)?);
                }
                new_vec
             }),
-            b"TDEN" => Frame::TDEN(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TDOR" => Frame::TDOR(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TDLY" => Frame::TDLY(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TDRC" => Frame::TDRC(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TDRL" => Frame::TDRL(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TDTG" => Frame::TDTG(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TENC" => Frame::TENC(decode_text_frame(frame_bytes)?),
-            b"TEXT" => Frame::TEXT(decode_text_frame(frame_bytes)?),
-            b"TIPL" => Frame::TIPL(decode_text_map_frame(frame_bytes)?),
-            b"TIT1" => Frame::TIT1(decode_text_frame(frame_bytes)?),
-            b"TIT2" => Frame::TIT2(decode_text_frame(frame_bytes)?),
-            b"TIT3" => Frame::TIT3(decode_text_frame(frame_bytes)?),
-            b"TLEN" => Frame::TLEN(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TMCL" => Frame::TMCL(decode_text_map_frame(frame_bytes)?),
-            b"TMOO" => Frame::TMOO(decode_text_frame(frame_bytes)?),
-            b"TOAL" => Frame::TOAL(decode_text_frame(frame_bytes)?),
-            b"TOFN" => Frame::TOFN(decode_text_frame(frame_bytes)?),
-            b"TOLY" => Frame::TOLY(decode_text_frame(frame_bytes)?),
-            b"TOPE" => Frame::TOPE(decode_text_frame(frame_bytes)?),
-            b"TOWN" => Frame::TOWN(decode_text_frame(frame_bytes)?),
-            b"TPE1" => Frame::TPE1(decode_text_frame(frame_bytes)?),
-            b"TPE2" => Frame::TPE2(decode_text_frame(frame_bytes)?),
-            b"TPE3" => Frame::TPE3(decode_text_frame(frame_bytes)?),
-            b"TPE4" => Frame::TPE4(decode_text_frame(frame_bytes)?),
-            b"TPOS" => Frame::TPOS(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TPRO" => Frame::TPRO({
+            b"TDEN" => FrameData::TDEN(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDOR" => FrameData::TDOR(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDLY" => FrameData::TDLY(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDRC" => FrameData::TDRC(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDRL" => FrameData::TDRL(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TDTG" => FrameData::TDTG(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TENC" => FrameData::TENC(decode_text_frame(frame_bytes)?),
+            b"TEXT" => FrameData::TEXT(decode_text_frame(frame_bytes)?),
+            b"TIPL" => FrameData::TIPL(decode_text_map_frame(frame_bytes)?),
+            b"TIT1" => FrameData::TIT1(decode_text_frame(frame_bytes)?),
+            b"TIT2" => FrameData::TIT2(decode_text_frame(frame_bytes)?),
+            b"TIT3" => FrameData::TIT3(decode_text_frame(frame_bytes)?),
+            b"TLEN" => FrameData::TLEN(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TMCL" => FrameData::TMCL(decode_text_map_frame(frame_bytes)?),
+            b"TMOO" => FrameData::TMOO(decode_text_frame(frame_bytes)?),
+            b"TOAL" => FrameData::TOAL(decode_text_frame(frame_bytes)?),
+            b"TOFN" => FrameData::TOFN(decode_text_frame(frame_bytes)?),
+            b"TOLY" => FrameData::TOLY(decode_text_frame(frame_bytes)?),
+            b"TOPE" => FrameData::TOPE(decode_text_frame(frame_bytes)?),
+            b"TOWN" => FrameData::TOWN(decode_text_frame(frame_bytes)?),
+            b"TPE1" => FrameData::TPE1(decode_text_frame(frame_bytes)?),
+            b"TPE2" => FrameData::TPE2(decode_text_frame(frame_bytes)?),
+            b"TPE3" => FrameData::TPE3(decode_text_frame(frame_bytes)?),
+            b"TPE4" => FrameData::TPE4(decode_text_frame(frame_bytes)?),
+            b"TPOS" => FrameData::TPOS(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TPRO" => FrameData::TPRO({
                let mut new_vec = Vec::new();
                for segment in decode_text_frame(frame_bytes)? {
                   new_vec.push(decode_copyright_frame(segment)?);
                }
                new_vec
             }),
-            b"TPUB" => Frame::TPUB(decode_text_frame(frame_bytes)?),
-            b"TRCK" => Frame::TRCK(map_parse(decode_text_frame(frame_bytes)?)?),
-            b"TRSN" => Frame::TRSN(decode_text_frame(frame_bytes)?),
-            b"TRSO" => Frame::TRSO(decode_text_frame(frame_bytes)?),
-            b"TSOA" => Frame::TSOA(decode_text_frame(frame_bytes)?),
-            b"TSOP" => Frame::TSOP(decode_text_frame(frame_bytes)?),
-            b"TSOT" => Frame::TSOT(decode_text_frame(frame_bytes)?),
-            b"TSRC" => Frame::TSRC(decode_text_frame(frame_bytes)?),
-            b"TSSE" => Frame::TSSE(decode_text_frame(frame_bytes)?),
-            b"TSST" => Frame::TSST(decode_text_frame(frame_bytes)?),
+            b"TPUB" => FrameData::TPUB(decode_text_frame(frame_bytes)?),
+            b"TRCK" => FrameData::TRCK(map_parse(decode_text_frame(frame_bytes)?)?),
+            b"TRSN" => FrameData::TRSN(decode_text_frame(frame_bytes)?),
+            b"TRSO" => FrameData::TRSO(decode_text_frame(frame_bytes)?),
+            b"TSOA" => FrameData::TSOA(decode_text_frame(frame_bytes)?),
+            b"TSOP" => FrameData::TSOP(decode_text_frame(frame_bytes)?),
+            b"TSOT" => FrameData::TSOT(decode_text_frame(frame_bytes)?),
+            b"TSRC" => FrameData::TSRC(decode_text_frame(frame_bytes)?),
+            b"TSSE" => FrameData::TSSE(decode_text_frame(frame_bytes)?),
+            b"TSST" => FrameData::TSST(decode_text_frame(frame_bytes)?),
             b"TXXX" => decode_txxx_frame(frame_bytes)?,
-            b"USLT" => Frame::USLT(decode_lang_description_text(frame_bytes)?),
-            b"WCOM" => Frame::WCOM(decode_url_frame(frame_bytes)),
-            b"WCOP" => Frame::WCOP(decode_url_frame(frame_bytes)),
-            b"WOAF" => Frame::WOAF(decode_url_frame(frame_bytes)),
-            b"WOAR" => Frame::WOAR(decode_url_frame(frame_bytes)),
-            b"WOAS" => Frame::WOAS(decode_url_frame(frame_bytes)),
-            b"WORS" => Frame::WORS(decode_url_frame(frame_bytes)),
-            b"WPAY" => Frame::WPAY(decode_url_frame(frame_bytes)),
-            b"WPUB" => Frame::WPUB(decode_url_frame(frame_bytes)),
-            _ => Frame::Unknown(UnknownFrame {
+            b"USLT" => FrameData::USLT(decode_lang_description_text(frame_bytes)?),
+            b"WCOM" => FrameData::WCOM(decode_url_frame(frame_bytes)),
+            b"WCOP" => FrameData::WCOP(decode_url_frame(frame_bytes)),
+            b"WOAF" => FrameData::WOAF(decode_url_frame(frame_bytes)),
+            b"WOAR" => FrameData::WOAR(decode_url_frame(frame_bytes)),
+            b"WOAS" => FrameData::WOAS(decode_url_frame(frame_bytes)),
+            b"WORS" => FrameData::WORS(decode_url_frame(frame_bytes)),
+            b"WPAY" => FrameData::WPAY(decode_url_frame(frame_bytes)),
+            b"WPUB" => FrameData::WPUB(decode_url_frame(frame_bytes)),
+            _ => FrameData::Unknown(UnknownFrame {
                name,
                data: Box::from(frame_bytes),
             }),
@@ -372,7 +383,11 @@ impl Iterator for Parser {
 
       self.cursor += frame_size as usize;
 
-      Some(result.map_err(|e| FrameParseError { name, reason: e }))
+      Some(
+         result
+            .map(|data| Frame { data, group })
+            .map_err(|e| FrameParseError { name, reason: e }),
+      )
    }
 }
 
@@ -384,7 +399,6 @@ pub struct FrameParseError {
 
 #[derive(Clone, Debug)]
 pub enum FrameParseErrorReason {
-   EmptyFrame,
    FrameTooSmall,
    MissingNullTerminator,
    MissingValueInMapFrame,
@@ -600,7 +614,7 @@ fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<String, String>, FrameP
    Ok(map)
 }
 
-fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
+fn decode_priv_frame(frame_bytes: &[u8]) -> Result<FrameData, FrameParseErrorReason> {
    let owner_end = match frame_bytes.iter().position(|x| *x == 0) {
       Some(v) => v,
       None => return Err(FrameParseErrorReason::MissingNullTerminator),
@@ -612,7 +626,7 @@ fn decode_priv_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
       &frame_bytes[owner_end + 1..]
    };
 
-   Ok(Frame::PRIV(Priv {
+   Ok(FrameData::PRIV(Priv {
       owner: frame_bytes[0..owner_end].iter().map(|c| *c as char).collect(), // IS0 8859,
       data: Box::from(data_ref),
    }))
@@ -660,7 +674,7 @@ fn decode_lang_description_text(frame_bytes: &[u8]) -> Result<LangDescriptionTex
    })
 }
 
-fn decode_txxx_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason> {
+fn decode_txxx_frame(frame_bytes: &[u8]) -> Result<FrameData, FrameParseErrorReason> {
    if frame_bytes.len() < 2 {
       return Err(FrameParseErrorReason::FrameTooSmall);
    }
@@ -669,10 +683,10 @@ fn decode_txxx_frame(frame_bytes: &[u8]) -> Result<Frame, FrameParseErrorReason>
 
    let (description, text) = decode_description_text(encoding, &frame_bytes[1..])?;
 
-   Ok(Frame::TXXX(Txxx { description, text }))
+   Ok(FrameData::TXXX(Txxx { description, text }))
 }
 
-fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
+fn decode_genre_frame(frame_bytes: &[u8]) -> Result<FrameData, TextDecodeError> {
    let mut genres = decode_text_frame(frame_bytes)?;
    for genre in genres.iter_mut() {
       match genre.as_ref() {
@@ -761,7 +775,7 @@ fn decode_genre_frame(frame_bytes: &[u8]) -> Result<Frame, TextDecodeError> {
          _ => (),
       };
    }
-   Ok(Frame::TCON(genres))
+   Ok(FrameData::TCON(genres))
 }
 
 fn decode_copyright_frame(mut text: String) -> Result<Copyright, FrameParseErrorReason> {

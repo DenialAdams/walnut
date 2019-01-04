@@ -45,6 +45,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
    let mut header: &mut [u8] = &mut [0u8; 10];
    source.read_exact(&mut header)?;
 
+   // TODO: search for ID3 from top of file
    let header = if &header[0..3] == b"ID3" {
       parse_header(&header[3..])
    } else {
