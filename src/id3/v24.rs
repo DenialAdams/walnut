@@ -292,8 +292,9 @@ impl Iterator for Parser {
       if frame_flags.contains(FrameFlags::GROUPING_IDENTITY) {
          group = Some(self.content[self.cursor]);
          self.cursor += 1;
-         // The frame size includes the
-         // saturating sub so we don't overflow on a bad frame size input
+         // frame size includes the flags, so we have to adjust it, as the code after this
+         // assumes frame size == data size.
+         // saturating sub so we don't underflow on a bad frame size input
          frame_size.saturating_sub(1);
       }
 
