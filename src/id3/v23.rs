@@ -1,3 +1,5 @@
+use bitflags::bitflags;
+
 bitflags! {
    pub(super) struct FrameFlags: u16 {
       // Status

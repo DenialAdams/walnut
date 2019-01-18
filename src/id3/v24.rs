@@ -1,4 +1,5 @@
 use super::synchsafe_u32_to_u32;
+use bitflags::bitflags;
 use byteorder::{BigEndian, ByteOrder};
 use std::collections::HashMap;
 use std::convert::TryFrom;
