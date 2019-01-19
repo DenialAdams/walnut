@@ -576,6 +576,10 @@ fn decode_text_segments(encoding: TextEncoding, mut text_slice: &[u8]) -> Result
 }
 
 fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<String, TextDecodeError> {
+   if text_slice.len() == 0 {
+      return Ok(String::from(""));
+   }
+
    match encoding {
       TextEncoding::ISO8859 => Ok(text_slice.iter().map(|c| *c as char).collect()),
       TextEncoding::UTF16BOM => {
