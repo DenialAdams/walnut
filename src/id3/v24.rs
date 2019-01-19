@@ -855,7 +855,7 @@ fn decode_copyright_frame(mut text: String) -> Result<Copyright, FrameParseError
 // because the id3 spec says that relative URLs are always ok
 // and that doesn't jive with general URL parsing
 fn decode_url_frame(mut frame: &[u8]) -> String {
-   if frame[frame.len() - 1] == 0 {
+   if frame.len() > 0 && frame[frame.len() - 1] == 0 {
       frame = &frame[..frame.len() - 1];
    }
 
