@@ -1,4 +1,4 @@
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use log::warn;
 use std;
 use std::io::{self, Read, Seek};
@@ -6,10 +6,6 @@ use std::io::{self, Read, Seek};
 mod v22;
 mod v23;
 pub mod v24;
-
-// TODO STREAMING ITERATOR
-// IT WILL PREVENT ALLOCATIONS AND MAKE DREAMS REAL
-// https://github.com/rust-lang/rust/issues/44265
 
 enum TagFlags {
    V24(v24::TagFlags),
@@ -50,7 +46,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
    let header = if &header[0..3] == b"ID3" {
       parse_header(&header[3..])
    } else {
-      // search for 3DI from bottom of file
+      // TODO: search for 3DI from bottom of file
       Err(TagParseError::NoTag)
    }?;
 
@@ -68,11 +64,30 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
          }
 
          if flags.contains(v24::TagFlags::EXTENDED_HEADER) {
-            unimplemented!();
+            let eh_size = synchsafe_u32_to_u32(source.read_u32::<BigEndian>()?);
+            let mut eh_bytes = vec![0u8; eh_size as usize].into_boxed_slice();
+            source.read_exact(&mut eh_bytes)?;
+            debug_assert_eq!(eh_bytes[0], 1); // Number of flag bytes
+            // eh_bytes[0] is always (supposed to be) set to 1
+            let eh_flags = v24::ExtendedHeaderFlags::from_bits_truncate(eh_bytes[1]);
+
+            // v24::ExtendedHeaderFlags::TAG_IS_UPDATE
+
+            if eh_flags.contains(v24::ExtendedHeaderFlags::CRC_DATA_PRESENT) {
+               let mut crc_bytes = [0; 5];
+               source.read_exact(&mut crc_bytes)?
+               // TODO: do something with this? and other EH FLAGS?
+               // note to future self: haven't dealt with endianness of crc_bytes yet
+            }
+
+            if eh_flags.contains(v24::ExtendedHeaderFlags::TAG_RESTRICTIONS) {
+               // not really sure why we care, is there any point in obeying these restrictions?
+               let _restrictions = source.read_u8();
+            }
          }
 
          if flags.contains(v24::TagFlags::EXPERIMENTAL_INDICATOR) {
-            warn!("Tag is experimental; proceeding anyway but may miss data");
+            warn!("Tag is marked as experimental; proceeding anyway but may miss data");
          }
 
          if flags.contains(v24::TagFlags::FOOTER_PRESENT) {
@@ -123,6 +138,15 @@ fn synchsafe_u32_to_u32(sync_int: u32) -> u32 {
    high | mid_high | mid_low | low
 }
 
+fn synchsafe_u40_to_u32(sync_int: u64) -> u32 {
+   let low = (sync_int & 0x00_00_00_ff) | (sync_int & 0x00_00_01_00) >> 1;
+   let mid_low = (sync_int & 0x00_00_fe_00) >> 1 | (sync_int & 0x00_03_00_00) >> 2;
+   let mid_high = (sync_int & 0x00_fc_00_00) >> 2 | (sync_int & 0x07_00_00_00) >> 3;
+   let high = (sync_int & 0xf8_00_00_00) >> 3 | (sync_int & 0x0f_00_00_00_0) >> 4;
+   let highest = (sync_int & 0xf0_00_00_00_00) >> 4;
+   (highest | high | mid_high | mid_low | low) as u32
+}
+
 mod test {
    #[cfg(test)]
    use super::*;
@@ -130,5 +154,6 @@ mod test {
    #[test]
    fn synchsafe_conversions() {
       assert_eq!(synchsafe_u32_to_u32(0x7f_7f_7f_7f), 0x0f_ff_ff_ff);
+      assert_eq!(synchsafe_u40_to_u32(0x7f_7f_7f_7f_7f), 0xff_ff_ff_ff);
    }
 }

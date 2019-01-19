@@ -32,6 +32,14 @@ bitflags! {
    }
 }
 
+bitflags! {
+   pub(super) struct ExtendedHeaderFlags: u8 {
+      const TAG_IS_UPDATE = 0b0100_0000;
+      const CRC_DATA_PRESENT = 0b0010_0000;
+      const TAG_RESTRICTIONS = 0b0001_0000;
+   }
+}
+
 pub(super) struct Parser {
    content: Box<[u8]>,
    cursor: usize,
