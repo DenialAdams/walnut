@@ -830,10 +830,14 @@ fn decode_genre_frame(frame_bytes: &[u8]) -> Result<FrameData, FrameParseErrorRe
 }
 
 fn decode_copyright_frame(mut text: String) -> Result<Copyright, FrameParseErrorReason> {
-   if text.len() < 4 {
-      return Err(FrameParseErrorReason::FrameTooSmall);
-   }
-   let year = text[0..4].parse()?;
+   // slicing into UTF-8 character
+   let year = if let Some(year_text) = text.get(0..4) {
+      year_text.parse()?
+   } else {
+      // could also be that we are slicing into a UTF-8 character,
+      // so the error message is slightly misleading in that case
+      return Err(FrameParseErrorReason::FrameTooSmall)
+   };
    let text_bytes = unsafe { text.as_mut_vec() };
    unsafe {
       if text_bytes.len() > 4 && text_bytes[4] == b' ' {
