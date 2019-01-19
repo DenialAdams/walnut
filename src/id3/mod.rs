@@ -77,9 +77,12 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
 
             size_of_frames = size_of_frames.saturating_sub(6);
 
-            // v24::ExtendedHeaderFlags::TAG_IS_UPDATE
+            if eh_flags.contains(v24::ExtendedHeaderFlags::TAG_IS_UPDATE) {
+               let _ = source.read_u8(); // 0
+            }
 
             if eh_flags.contains(v24::ExtendedHeaderFlags::CRC_DATA_PRESENT) {
+               let _ = source.read_u8(); // 5
                let mut crc_bytes = [0; 5];
                source.read_exact(&mut crc_bytes)?;
                // TODO: do something with this? and other EH FLAGS?
@@ -88,6 +91,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
             }
 
             if eh_flags.contains(v24::ExtendedHeaderFlags::TAG_RESTRICTIONS) {
+               let _ = source.read_u8(); // 1
                // not really sure why we care, is there any point in obeying these restrictions?
                let _restrictions = source.read_u8();
                size_of_frames = size_of_frames.saturating_sub(1);
