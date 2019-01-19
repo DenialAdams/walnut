@@ -73,7 +73,7 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
             // eh_bytes[0] is always (supposed to be) set to 1
             let eh_flags = v24::ExtendedHeaderFlags::from_bits_truncate(eh_bytes[1]);
 
-            size_of_frames -= 6;
+            size_of_frames = size_of_frames.saturating_sub(6);
 
             // v24::ExtendedHeaderFlags::TAG_IS_UPDATE
 
@@ -82,13 +82,13 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
                source.read_exact(&mut crc_bytes)?;
                // TODO: do something with this? and other EH FLAGS?
                // note to future self: haven't dealt with endianness of crc_bytes yet
-               size_of_frames -= 5;
+               size_of_frames = size_of_frames.saturating_sub(5);
             }
 
             if eh_flags.contains(v24::ExtendedHeaderFlags::TAG_RESTRICTIONS) {
                // not really sure why we care, is there any point in obeying these restrictions?
                let _restrictions = source.read_u8();
-               size_of_frames -= 1;
+               size_of_frames = size_of_frames.saturating_sub(1);
             }
          }
 
