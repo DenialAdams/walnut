@@ -16,6 +16,7 @@ enum TagFlags {
 #[derive(Debug)]
 pub enum TagParseError {
    NoTag,
+   TagTooSmall,
    UnsupportedVersion(u8),
    Io(io::Error),
 }
@@ -70,9 +71,13 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
          if flags.contains(v24::TagFlags::EXTENDED_HEADER) {
             let eh_size = synchsafe_u32_to_u32(source.read_u32::<BigEndian>()?);
 
+            if eh_size < 6 {
+               return Err(TagParseError::TagTooSmall);
+            }
+
             size_of_frames = size_of_frames.saturating_sub(eh_size);
             // we have to make sure to sub 4, as eh_size includes itself
-            let mut eh_bytes = vec![0u8; eh_size.saturating_sub(4) as usize].into_boxed_slice();
+            let mut eh_bytes = vec![0u8; (eh_size - 4) as usize].into_boxed_slice();
             source.read_exact(&mut eh_bytes)?;
             // eh_bytes[0] is always (supposed to be) set to 1
             let _eh_flags = v24::ExtendedHeaderFlags::from_bits_truncate(eh_bytes[1]);

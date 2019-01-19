@@ -136,6 +136,9 @@ fn print_file(f: &mut File) -> bool {
             id3::TagParseError::NoTag => {
                println!("No ID3");
             }
+            id3::TagParseError::TagTooSmall => {
+               println!("Malformed ID3 input");
+            }
             id3::TagParseError::UnsupportedVersion(ver) => {
                println!("ID3v2{}", ver);
             }
