@@ -280,7 +280,7 @@ impl Iterator for Parser {
 
    fn next(&mut self) -> Option<Result<Frame, FrameParseError>> {
       // Each frame must be at least 10 bytes
-      if self.content.len() - self.cursor < 10 {
+      if self.content.len().saturating_sub(self.cursor) < 10 {
          return None;
       }
 
@@ -299,9 +299,17 @@ impl Iterator for Parser {
 
       let mut group = None;
       if frame_flags.contains(FrameFlags::GROUPING_IDENTITY) {
-         group = Some(self.content[self.cursor]);
+         let group_byte = if let Some(byte) = self.content.get(self.cursor) {
+            *byte
+         } else {
+            return Some(Err(FrameParseError {
+               reason: FrameParseErrorReason::FrameTooSmall,
+               name,
+            }));
+         };
+         group = Some(group_byte);
          self.cursor += 1;
-         // frame size includes the flags, so we have to adjust it, as the code after this
+         // frame size includes the flag data, so we have to adjust it, as the code after this
          // assumes frame size == data size.
          // saturating sub so we don't underflow on a bad frame size input
          frame_size = frame_size.saturating_sub(1);
@@ -310,11 +318,36 @@ impl Iterator for Parser {
       if frame_flags.contains(FrameFlags::DATA_LENGTH_INDICATOR) {
          // TODO: we only need to use this when we implement compression,
          // and some forms of encryption.
-         frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(&self.content[self.cursor..self.cursor + 4]));
+         let dli_bytes = if let Some(bytes) = self.content.get(self.cursor..self.cursor.saturating_add(4)) {
+            bytes
+         } else {
+            return Some(Err(FrameParseError {
+               reason: FrameParseErrorReason::FrameTooSmall,
+               name,
+            }));
+         };
+         if dli_bytes.len() < 4 {
+            return Some(Err(FrameParseError {
+               reason: FrameParseErrorReason::FrameTooSmall,
+               name,
+            }));
+         }
+         frame_size = synchsafe_u32_to_u32(BigEndian::read_u32(dli_bytes));
          self.cursor += 4;
       }
 
-      let frame_bytes = &self.content[self.cursor..self.cursor + frame_size as usize];
+      let frame_bytes = if let Some(slice) = self
+         .content
+         .get(self.cursor..self.cursor.saturating_add(frame_size as usize))
+      {
+         slice
+      } else {
+         self.cursor = self.cursor.saturating_add(frame_size as usize);
+         return Some(Err(FrameParseError {
+            reason: FrameParseErrorReason::FrameTooSmall,
+            name,
+         }));
+      };
 
       let result: Result<FrameData, FrameParseErrorReason> = try {
          match &name {
