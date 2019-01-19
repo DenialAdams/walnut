@@ -304,7 +304,7 @@ impl Iterator for Parser {
          // frame size includes the flags, so we have to adjust it, as the code after this
          // assumes frame size == data size.
          // saturating sub so we don't underflow on a bad frame size input
-         frame_size.saturating_sub(1);
+         frame_size = frame_size.saturating_sub(1);
       }
 
       if frame_flags.contains(FrameFlags::DATA_LENGTH_INDICATOR) {

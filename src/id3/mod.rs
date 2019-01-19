@@ -66,7 +66,9 @@ pub fn parse_source<S: Read + Seek>(source: &mut S) -> Result<Parser, TagParseEr
          }
 
          if flags.contains(v24::TagFlags::EXTENDED_HEADER) {
-            let eh_size = synchsafe_u32_to_u32(source.read_u32::<BigEndian>()?);
+            let eh_size = synchsafe_u32_to_u32(source.read_u32::<BigEndian>()?)
+                           // eh_size includes itself
+                           .saturating_sub(4);
             let mut eh_bytes = vec![0u8; eh_size as usize].into_boxed_slice();
             source.read_exact(&mut eh_bytes)?;
             debug_assert_eq!(eh_bytes[0], 1); // Number of flag bytes
