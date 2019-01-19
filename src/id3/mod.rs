@@ -135,6 +135,9 @@ fn synchsafe_u32_to_u32(sync_int: u32) -> u32 {
    high | mid_high | mid_low | low
 }
 
+/*
+Potentially need this for CRC in the future
+
 fn synchsafe_u40_to_u32(sync_int: u64) -> u32 {
    let low = (sync_int & 0x00_00_00_ff) | (sync_int & 0x00_00_01_00) >> 1;
    let mid_low = (sync_int & 0x00_00_fe_00) >> 1 | (sync_int & 0x00_03_00_00) >> 2;
@@ -142,7 +145,7 @@ fn synchsafe_u40_to_u32(sync_int: u64) -> u32 {
    let high = (sync_int & 0xf8_00_00_00) >> 3 | (sync_int & 0x0f_00_00_00_0) >> 4;
    let highest = (sync_int & 0xf0_00_00_00_00) >> 4;
    (highest | high | mid_high | mid_low | low) as u32
-}
+} */
 
 mod test {
    #[cfg(test)]
