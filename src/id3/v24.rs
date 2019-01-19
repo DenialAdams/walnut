@@ -616,14 +616,18 @@ fn decode_text_segment(encoding: TextEncoding, text_slice: &[u8]) -> Result<Stri
    }
 }
 
-/// Panics if frame is 0 length.
-fn decode_text_frame(frame: &[u8]) -> Result<Vec<String>, TextDecodeError> {
+fn decode_text_frame(frame: &[u8]) -> Result<Vec<String>, FrameParseErrorReason> {
+   if frame.len() < 1 {
+      return Err(FrameParseErrorReason::FrameTooSmall);
+   }
    let encoding = TextEncoding::try_from(frame[0])?;
-   decode_text_segments(encoding, &frame[1..frame.len()])
+   Ok(decode_text_segments(encoding, &frame[1..])?)
 }
 
-/// Panics if frame is 0 length.
 fn decode_text_map_frame(frame: &[u8]) -> Result<HashMap<String, String>, FrameParseErrorReason> {
+   if frame.len() < 1 {
+      return Err(FrameParseErrorReason::FrameTooSmall);
+   }
    let encoding = TextEncoding::try_from(frame[0])?;
    let separator = encoding.get_trailing_null_slice();
    let mut start = 1;
@@ -729,7 +733,7 @@ fn decode_txxx_frame(frame_bytes: &[u8]) -> Result<FrameData, FrameParseErrorRea
    Ok(FrameData::TXXX(Txxx { description, text }))
 }
 
-fn decode_genre_frame(frame_bytes: &[u8]) -> Result<FrameData, TextDecodeError> {
+fn decode_genre_frame(frame_bytes: &[u8]) -> Result<FrameData, FrameParseErrorReason> {
    let mut genres = decode_text_frame(frame_bytes)?;
    for genre in genres.iter_mut() {
       match genre.as_ref() {
